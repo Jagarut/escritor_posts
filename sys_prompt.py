@@ -13,7 +13,7 @@ MODELS = {
 }
 
 # System prompt options
-SYSTEM_PROMPTS = PROMPT_LIBRARY["Creative Writing"]
+SYSTEM_PROMPTS = PROMPT_LIBRARY
 
 def main():
     st.set_page_config(page_title="AI Story Writer", layout="wide")
@@ -25,7 +25,7 @@ def main():
         st.session_state.story_manager = StoryManager()
         st.session_state.selected_model = "mistral-small-latest"
         st.session_state.temperature = 0.7
-        st.session_state.system_prompt = SYSTEM_PROMPTS["Wet Spin"]
+        st.session_state.system_prompt = SYSTEM_PROMPTS["Obedient AI"]
 
     # Sidebar for controls
     with st.sidebar:
