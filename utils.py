@@ -1,4 +1,5 @@
 import os
+import re 
 import ollama
 from prompt_lib import PROMPT_LIBRARY
 from mistralai import Mistral, UserMessage
@@ -109,6 +110,64 @@ def refine_text(
     """
     return generate_text(prompt, model=model, **kwargs)
 
+
+def split_into_paragraphs(text):
+    """Split text into paragraphs while preserving empty lines as paragraph separators"""
+    paragraphs = re.split(r'\n\s*\n', text.strip())
+    # The if p.strip() condition is necessary if you want to ensure that the resulting list does not contain any empty paragraphs. 
+    # If you are okay with having empty paragraphs in the list, you can omit the condition
+    return [p.strip() for p in paragraphs if p.strip()]
+
+def join_paragraphs(paragraphs):
+    """Join paragraphs with double newlines"""
+    return '\n\n'.join(paragraphs)
+
+def regenerate_paragraph(paragraph, instruction=None, context=None, model=None, system_prompt=None, temperature=0.7):
+    """
+    Regenerate a single paragraph with optional instructions and context
+    
+    Args:
+        paragraph (str): The paragraph to regenerate
+        instruction (str): How to modify the paragraph
+        context (dict): Surrounding paragraphs for context
+        model (str): Model identifier
+        system_prompt (str): System message to guide the model
+        temperature (float): Creativity parameter
+    
+    Returns:
+        str: Regenerated paragraph
+    """
+    messages = []
+    
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    
+    prompt = f"""Please regenerate the following paragraph{' ' + instruction if instruction else ''}:
+    
+Paragraph to regenerate:
+{paragraph}
+"""
+    
+    if context:
+        if context.get("previous_paragraphs"):
+            prompt += f"\nPrevious context:\n{'\n'.join(context['previous_paragraphs'])}\n"
+        if context.get("next_paragraphs"):
+            prompt += f"\nFollowing context:\n{'\n'.join(context['next_paragraphs'])}\n"
+    
+    prompt += "\nPlease provide only the regenerated paragraph, without any additional commentary or markup."
+    
+    messages.append({"role": "user", "content": prompt})
+    
+    # Call your AI model here - this will depend on your specific implementation
+    response = generate_text(
+        prompt=prompt,
+        model=model,
+        temperature=temperature,
+        system_prompt=system_prompt
+    )
+    
+    # Clean up the response to ensure we only get the paragraph
+    return response.strip()
 
 # prompt = "Write a first-kiss scene between two rivals in a candlelit library."
 
