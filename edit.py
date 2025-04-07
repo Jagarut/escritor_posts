@@ -1,7 +1,7 @@
 import streamlit as st
 from prompt_lib import PROMPT_LIBRARY
 from story_manager import StoryManager
-from utils import generate_text, refine_text, split_into_paragraphs, join_paragraphs, regenerate_paragraph
+from utils import generate_text, refine_text, split_into_paragraphs, join_paragraphs, regenerate_paragraph, generate_pdf
 import re
 
 # Available models with proper naming
@@ -138,6 +138,8 @@ def main():
                         # Display paragraph and buttons side by side
                         text_col, btn_col = st.columns([4, 1])
                         with text_col:
+                            # Add paragraph number as a label
+                            st.markdown(f"**Paragraph {i+1}:**")
                             st.write(paragraph)
                         with btn_col:
                             if st.button("✏️ Edit", key=f"edit_btn_{i}"):
@@ -161,6 +163,9 @@ def main():
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Regeneration failed: {str(e)}")
+                    
+                    # Add a visual separator between paragraphs
+                    st.markdown("---")
             
             # Save edited version
             if st.button("💾 Save Edited Version", use_container_width=True):
@@ -252,39 +257,79 @@ def main():
                         st.error(str(e))
 
             st.subheader("Paragraph Tools")
+        
+            # Add New Paragraph button
             if st.button("Add New Paragraph", use_container_width=True):
                 st.session_state.edited_paragraphs.append("")
                 st.session_state.editing_paragraph = len(st.session_state.edited_paragraphs) - 1
                 st.rerun()
 
-            if st.button("Combine Selected Paragraphs", use_container_width=True):
-                selected = st.multiselect(
-                    "Select paragraphs to combine",
-                    options=[f"Paragraph {i+1}" for i in range(len(st.session_state.edited_paragraphs))]
-                )
-                if selected:
-                    indices = [int(p.split()[1])-1 for p in selected]
-                    combined = "\n\n".join([st.session_state.edited_paragraphs[i] for i in sorted(indices)])
-                    # Remove the combined paragraphs and insert the new one at the first position
-                    for i in sorted(indices, reverse=True):
-                        st.session_state.edited_paragraphs.pop(i)
-                    st.session_state.edited_paragraphs.insert(min(indices), combined)
-                    st.rerun()
+            # Combine Paragraphs - Fixed Version
+            st.write("---")
+            st.subheader("Combine Paragraphs")
 
-            # Add AI regeneration with instructions
+            # Create a multiselect with paragraph previews
+            para_options = [
+                f"Paragraph {i+1}: {para[:30]}..." if len(para) > 30 else f"Paragraph {i+1}: {para}"
+                for i, para in enumerate(st.session_state.edited_paragraphs)
+            ]
+
+            selected = st.multiselect(
+                "Select paragraphs to combine (in order):",
+                options=para_options,
+                format_func=lambda x: x
+            )
+
+            if st.button("Combine Selected Paragraphs", use_container_width=True):
+                if len(selected) > 1:
+                    try:
+                        # Get the original indices from the selection
+                        selected_indices = [para_options.index(sel) for sel in selected]
+
+                        # Combine the paragraphs with double newlines between them
+                        combined_text = '\n\n'.join(
+                            st.session_state.edited_paragraphs[i] for i in selected_indices
+                        )
+
+                        # Remove the original paragraphs (starting from highest index first)
+                        for i in sorted(selected_indices, reverse=True):
+                            st.session_state.edited_paragraphs.pop(i)
+
+                        # Insert the combined text at the first original position
+                        st.session_state.edited_paragraphs.insert(
+                            min(selected_indices), 
+                            combined_text
+                        )
+
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error combining paragraphs: {str(e)}")
+                else:
+                    st.warning("Please select at least 2 paragraphs to combine")
+
+            # Add AI regeneration with instructions and numbered paragraphs
             st.subheader("AI Paragraph Regeneration")
             regen_instruction = st.text_input(
                 "Instructions for regeneration",
                 "Make this more descriptive and engaging",
                 key="regen_instruction"
             )
+            
+            # Create options with paragraph numbers and preview text
+            paragraph_options = []
+            for i, para in enumerate(st.session_state.edited_paragraphs):
+                preview = para[:30] + "..." if len(para) > 30 else para
+                paragraph_options.append(f"Para {i+1}: {preview}")
+                
             selected_para = st.selectbox(
                 "Select paragraph to regenerate",
-                options=[f"Paragraph {i+1}" for i in range(len(st.session_state.edited_paragraphs))]
+                options=paragraph_options
             )
+            
             if st.button("Regenerate Selected Paragraph", use_container_width=True):
-                para_index = int(selected_para.split()[1])-1
-                with st.spinner(f"Regenerating {selected_para}..."):
+                # Extract paragraph index from the selected option
+                para_index = int(selected_para.split(":")[0].split()[1])-1
+                with st.spinner(f"Regenerating paragraph {para_index+1}..."):
                     try:
                         context = {
                             "previous_paragraphs": st.session_state.edited_paragraphs[:para_index],
@@ -301,7 +346,43 @@ def main():
                         st.session_state.edited_paragraphs[para_index] = regenerated
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Regeneration failed: {str(e)}")                    
+                        st.error(f"Regeneration failed: {str(e)}")       
+                        
+                        st.subheader("Export Options")
+            
+            # PDF Settings - moved outside the button click handler
+            with st.expander("PDF Settings", expanded=False):
+                title = st.text_input("Title", "My AI-Generated Story")
+                author = st.text_input("Author", "AI Story Writer")
+            
+            # PDF Export
+            if st.button("📄 Export to PDF", use_container_width=True):
+                if st.session_state.edited_paragraphs:
+                    current_story = join_paragraphs(st.session_state.edited_paragraphs)
+
+                    # Generate PDF
+                    try:
+                        pdf = generate_pdf(current_story, title, author)
+                        
+                        # Create download link
+                        from io import BytesIO
+                        pdf_bytes = BytesIO()
+                        pdf.output(pdf_bytes)
+                        pdf_bytes.seek(0)
+                        
+                        st.download_button(
+                            label="⬇️ Download PDF",
+                            data=pdf_bytes,
+                            file_name=f"{title.replace(' ', '_')}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+                    except Exception as e:
+                        st.error(f"PDF generation failed: {str(e)}")
+                        st.info("Make sure you have the fpdf library installed. Run: pip install fpdf")
+                else:
+                    st.warning("No content to export. Please generate or edit a story first.")
+             
 
 if __name__ == "__main__":
     main()
