@@ -208,6 +208,21 @@ def main():
         if st.session_state.story_manager.versions:
             st.subheader("Quick Refinement Presets")
             
+            if st.button("Translate to Spanish", use_container_width=True):
+                with st.spinner("Translating to Spanish..."):
+                    try:
+                        current_text = join_paragraphs(st.session_state.edited_paragraphs)
+                        refined = refine_text(
+                            current_text,
+                            PROMPT_LIBRARY["Traductor English to Spanish"],
+                            model=st.session_state.selected_model,
+                            system_prompt=st.session_state.system_prompt
+                        )
+                        st.session_state.story_manager.add_version(refined, "Translated to Spanish")
+                        st.session_state.edited_paragraphs = split_into_paragraphs(refined)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(str(e))
             if st.button("Improve Readability", use_container_width=True):
                 with st.spinner("Adjusting readability..."):
                     try:

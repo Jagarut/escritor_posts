@@ -201,33 +201,75 @@ Paragraph to regenerate:
     
 #     return pdf
 
+from fpdf import FPDF
+from io import BytesIO
 
-                        
-# Create PDF generation function if not already imported
-def generate_pdf(text, title, author):
+def generate_pdf(story_content, title="AI Generated Story", author="AI Story Writer"):
+    """Generate PDF with Unicode support"""
     pdf = FPDF()
-    pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
     
-    # Set font for title
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, title, ln=True, align="C")
+    # Add DejaVu font (or any other Unicode font)
+    try:
+        pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
+        pdf.add_font('DejaVu', 'B', 'DejaVuSans-Bold.ttf', uni=True)
+        pdf.add_font('DejaVu', 'I', 'DejaVuSans-Oblique.ttf', uni=True)
+        font_family = 'DejaVu'
+    except:
+        # Fallback to Arial Unicode if DejaVu not available
+        try:
+            pdf.add_font('ArialUnicode', '', 'arial-unicode-ms.ttf', uni=True)
+            font_family = 'ArialUnicode'
+        except:
+            font_family = 'Arial'
+            print("Special characters may not display correctly - install DejaVu or Arial Unicode fonts for full support")
     
-    # Add author
-    pdf.set_font("Arial", "I", 12)
-    pdf.cell(0, 10, f"By: {author}", ln=True, align="C")
-    pdf.ln(5)
+    # Add a page
+    pdf.add_page()
     
-    # Set font for body text
-    pdf.set_font("Arial", "", 12)
+    # Title
+    pdf.set_font(font_family, 'B', 16)
+    pdf.cell(0, 10, title, 0, 1, 'C')
     
-    # Split text into paragraphs and add to PDF
-    paragraphs = text.split("\n\n")
-    for paragraph in paragraphs:
-        pdf.multi_cell(0, 10, paragraph)
+    # Author
+    pdf.set_font(font_family, 'I', 12)
+    pdf.cell(0, 10, f"by {author}", 0, 1, 'C')
+    pdf.ln(10)
+    
+    # Content
+    pdf.set_font(font_family, '', 12)
+    for paragraph in story_content.split('\n\n'):
+        pdf.multi_cell(0, 8, paragraph.strip())
         pdf.ln(5)
-        
+    
     return pdf
+                        
+# Create PDF generation function if not already imported
+# def generate_pdf(text, title, author):
+    
+#     pdf = FPDF()
+#     pdf.add_page()
+#     pdf.set_auto_page_break(auto=True, margin=15)
+    
+#     # Set font for title
+#     pdf.set_font("Arial", "B", 16)
+#     pdf.cell(0, 10, title, ln=True, align="C")
+    
+#     # Add author
+#     pdf.set_font("Arial", "I", 12)
+#     pdf.cell(0, 10, f"By: {author}", ln=True, align="C")
+#     pdf.ln(5)
+    
+#     # Set font for body text
+#     pdf.set_font("Arial", "", 12)
+    
+#     # Split text into paragraphs and add to PDF
+#     paragraphs = text.split("\n\n")
+#     for paragraph in paragraphs:
+#         pdf.multi_cell(0, 10, paragraph)
+#         pdf.ln(5)
+        
+#     return pdf
 # prompt = "Write a first-kiss scene between two rivals in a candlelit library."
 
 # r = generate_text(prompt,  model="ollama/hermes3:3b")
