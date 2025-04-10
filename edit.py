@@ -9,8 +9,14 @@ MODELS = {
     "Mistral Small": "mistral-small-latest",
     "Mistral Medium": "mistral-medium-latest",
     "Ollama Mistral": "ollama/mistral",
-    "Ollama Hermes 3": "ollama/hermes3:3b",
-    "Ollama Llama3.2": "ollama/llama3.2:3b"
+    "Ollama Hermes 3:3b": "ollama/hermes3:3b",
+    "Ollama Llama3.2": "ollama/llama3.2:3b",
+    "LM Studio Llama3.2": "LMstudio/llama-3.2-3b-instruct-uncensored",
+    "LM Studio dolphin3.0-llama3.2": "LMstudio/dolphin3.0-llama3.2-3b",
+    "LM Studio dolphin3.0-qwen2.5": "LMstudio/dolphin3.0-qwen2.5-3b",
+    "LM Studio dolphin-2.9.4-gemma2-2b": "LMstudio/dolphin-2.9.4-gemma2-2b",
+    "LM Studio Hermes 3:8b": "LMstudio/hermes-3-llama-3.1-8b",
+    "LM Studio nsfw-3b": "LMstudio/nsfw-3b",
 }
 
 # System prompt options
@@ -177,7 +183,7 @@ def main():
             st.subheader("Refinement Tools")
             feedback = st.text_input(
                 "How should we improve this?",
-                "Make the dialogue more natural and descriptive"
+                "Add descriptive dialogue, expand on characters, or add more detail.",
             )
             
             refine_col1, refine_col2 = st.columns(2)
