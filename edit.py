@@ -1,5 +1,5 @@
 import streamlit as st
-from prompt_lib import PROMPT_LIBRARY
+from prompt_lib import SYSTEM_PROMPTS, USER_PROMPTS
 from story_manager import StoryManager
 from utils import generate_text, refine_text, split_into_paragraphs, join_paragraphs, regenerate_paragraph, generate_pdf
 import re
@@ -26,7 +26,7 @@ MODELS = {
 }
 
 # System prompt options
-SYSTEM_PROMPTS = PROMPT_LIBRARY
+# SYSTEM_PROMPTS = SYSTEM_PROMPTS
 
 def main():
     st.set_page_config(page_title="AI Story Writer", layout="wide")
@@ -39,6 +39,7 @@ def main():
         st.session_state.selected_model = "mistral-small-latest"
         st.session_state.temperature = 0.7
         st.session_state.system_prompt = SYSTEM_PROMPTS["Obedient AI"]
+        st.session_state.user_prompt = USER_PROMPTS["Add Dialogue"]
         st.session_state.editing_paragraph = None
         st.session_state.edited_paragraphs = []
 
@@ -57,15 +58,27 @@ def main():
         )
         st.session_state.selected_model = MODELS[selected_display]
         st.info(f"Selected Model: {st.session_state.selected_model}")
+        
         # System prompt selection
         selected_prompt = st.selectbox(
             "Writing Style(sytem prompt)",
             options=list(SYSTEM_PROMPTS.keys()),
             index=list(SYSTEM_PROMPTS.values()).index(st.session_state.system_prompt),
-            key="prompt_select"
+            key="sys_prompt_select"
         )
         st.session_state.system_prompt = SYSTEM_PROMPTS[selected_prompt]
         st.info(f"System Prompt: {st.session_state.system_prompt[:50]}...")
+        
+        # User prompt selection
+        selected_prompt = st.selectbox(
+            "Instructions(user prompt)",
+            options=list(USER_PROMPTS.keys()),
+            index=list(USER_PROMPTS.values()).index(st.session_state.user_prompt),
+            key="user_prompt_select"
+        )
+        st.session_state.user_prompt = USER_PROMPTS[selected_prompt]
+        st.info(f"Prompt: {st.session_state.user_prompt[:50]}...")
+        
         # Temperature control
         st.session_state.temperature = st.slider(
             "Creativity (temperature)",
@@ -160,7 +173,7 @@ def main():
                                 st.session_state.editing_paragraph = i
                                 st.rerun()
                             if st.button("🔄 AI", key=f"regenerate_{i}"):
-                                with st.spinner(f"Regenerating paragraph {i+1}..."):
+                                with st.spinner(f"Regenerating paragraph {i+1}... "):
                                     try:
                                         context = {
                                             "previous_paragraphs": st.session_state.edited_paragraphs[:i],
@@ -168,7 +181,7 @@ def main():
                                         }
                                         regenerated = regenerate_paragraph(
                                             paragraph,
-                                            instruction="Add funny content to this paragraph.",
+                                            instruction=st.session_state.user_prompt,
                                             context=context,
                                             model=st.session_state.selected_model,
                                             system_prompt=st.session_state.system_prompt,
@@ -229,7 +242,7 @@ def main():
                         current_text = join_paragraphs(st.session_state.edited_paragraphs)
                         refined = refine_text(
                             current_text,
-                            PROMPT_LIBRARY["Traductor English to Spanish"],
+                            SYSTEM_PROMPTS["Traductor English to Spanish"],
                             model=st.session_state.selected_model,
                             system_prompt=st.session_state.system_prompt
                         )

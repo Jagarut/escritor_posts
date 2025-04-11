@@ -3,7 +3,7 @@ import re
 import ollama
 import lmstudio as lms
 from fpdf import FPDF
-from prompt_lib import PROMPT_LIBRARY
+# from prompt_lib import PROMPT_LIBRARY
 from mistralai import Mistral
 from groq import Groq
 from dotenv import load_dotenv
@@ -56,7 +56,6 @@ def generate_text(
         print("================")
         m = model.split("/")
         model = m[1]
-        print(model)
         if model.startswith("meta-llama"):
             model = "/".join(m[1:])
         # Groq API implementation
