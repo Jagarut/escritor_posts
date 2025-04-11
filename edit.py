@@ -8,6 +8,12 @@ import re
 MODELS = {
     "Mistral Small": "mistral-small-latest",
     "Mistral Medium": "mistral-medium-latest",
+    "Groq Gemma2:9b": "groq/gemma2-9b-it",
+    "Groq Qwen-2.5:32b": "groq/qwen-2.5-32b",
+    "Groq Qwen-Qwq:32b": "groq/qwen-qwq-32b",
+    "Groq Llama Scout": "groq/meta-llama/llama-4-scout-17b-16e-instruct",
+    "Groq Llama Maverick": "groq/meta-llama/llama-4-maverick-17b-128e-instruct",
+    "Groq LLama Versatile:70b": "groq/llama-3.3-70b-versatile",
     "Ollama Mistral": "ollama/mistral",
     "Ollama Hermes 3:3b": "ollama/hermes3:3b",
     "Ollama Llama3.2": "ollama/llama3.2:3b",
@@ -42,24 +48,24 @@ def main():
         
         # Model selection
         current_model = st.session_state.selected_model
-        display_name = next(k for k, v in MODELS.items() if v == current_model)
+        # display_name = next(k for k, v in MODELS.items() if v == current_model)
         selected_display = st.selectbox(
             "AI Model",
             options=list(MODELS.keys()),
-            index=list(MODELS.values()).index(current_model),
+            index=list(MODELS.values()).index(current_model),  # sets the default selected model in the select box
             key="model_select"
         )
         st.session_state.selected_model = MODELS[selected_display]
-        
+        st.info(f"Selected Model: {st.session_state.selected_model}")
         # System prompt selection
         selected_prompt = st.selectbox(
-            "Writing Style",
+            "Writing Style(sytem prompt)",
             options=list(SYSTEM_PROMPTS.keys()),
             index=list(SYSTEM_PROMPTS.values()).index(st.session_state.system_prompt),
             key="prompt_select"
         )
         st.session_state.system_prompt = SYSTEM_PROMPTS[selected_prompt]
-        
+        st.info(f"System Prompt: {st.session_state.system_prompt[:50]}...")
         # Temperature control
         st.session_state.temperature = st.slider(
             "Creativity (temperature)",
@@ -70,6 +76,8 @@ def main():
         # Model info
         if st.session_state.selected_model.startswith("ollama"):
             st.info("Using local Ollama model. Ensure the model is pulled and Ollama is running.")
+        if st.session_state.selected_model.startswith("LMstudio"):
+            st.info("Using local LMstudio model. Ensure the model is loaded and LMstudio is running.")
         
         # Version history
         st.header("Version History")
@@ -88,7 +96,7 @@ def main():
             st.subheader("Create New Story")
             user_prompt = st.text_area(
                 "Story prompt",
-                "A detective in 2050 solves a murder using AI.",
+                "Write a short story about: ",
                 height=150
             )
             
@@ -96,14 +104,14 @@ def main():
                 with st.spinner(f"Generating with {selected_display}..."):
                     try:
                         draft = generate_text(
-                            prompt=f"Write a short story about: {user_prompt}",
+                            prompt=f"{user_prompt}",
                             model=st.session_state.selected_model,
                             temperature=st.session_state.temperature,
                             system_prompt=st.session_state.system_prompt
                         )
                         st.session_state.story_manager.add_version(draft, "Initial draft")
                         st.session_state.edited_paragraphs = split_into_paragraphs(draft)
-                        st.rerun()
+                        st.rerun()  # Rerun to update UI
                     except Exception as e:
                         st.error(f"Generation failed: {str(e)}")
 
@@ -160,6 +168,7 @@ def main():
                                         }
                                         regenerated = regenerate_paragraph(
                                             paragraph,
+                                            instruction="Add funny content to this paragraph.",
                                             context=context,
                                             model=st.session_state.selected_model,
                                             system_prompt=st.session_state.system_prompt,
