@@ -146,7 +146,7 @@ def refine_text(
     **kwargs
 ) -> str:
     """
-    Refines text using Mistral or Ollama.
+    Refines text using AI model.
     
     Args:
         original_text (str): Text to refine
@@ -180,49 +180,128 @@ def join_paragraphs(paragraphs):
     """Join paragraphs with double newlines"""
     return '\n\n'.join(paragraphs)
 
-def regenerate_paragraph(paragraph, instruction=None, context=None, model=None, system_prompt=None, temperature=0.7):
+def delete_paragraph(paragraphs, index):
     """
-    Regenerate a single paragraph with optional instructions and context
+    Delete a paragraph from a list of paragraphs
+    
+    Args:
+        paragraphs (list): List of paragraph strings
+        index (int): Index of paragraph to delete
+    
+    Returns:
+        list: Updated list of paragraphs with specified paragraph removed
+    """
+    if index < 0 or index >= len(paragraphs):
+        raise IndexError("Paragraph index out of range")
+    
+    return paragraphs[:index] + paragraphs[index+1:]
+
+
+def regenerate_paragraph(
+    paragraph, 
+    instruction=None, 
+    context = None,
+    context_window=1,  # Number of paragraphs to include before/after
+    model=None, 
+    system_prompt=None, 
+    temperature=0.7
+):
+    """
+    Regenerate a single paragraph with nearby context.
     
     Args:
         paragraph (str): The paragraph to regenerate
         instruction (str): How to modify the paragraph
-        context (dict): Surrounding paragraphs for context
+        context (dict): Dictionary containing 'previous_paragraphs' and 'next_paragraphs'
+        context_window (int): How many paragraphs before/after to include
         model (str): Model identifier
-        system_prompt (str): System message to guide the model
-        temperature (float): Creativity parameter
+        system_prompt (str): System message
+        temperature (float): Creativity control
     
     Returns:
         str: Regenerated paragraph
     """
+    if context is None:
+        context = {"previous_paragraphs": [], "next_paragraphs": []}
+    
     messages = []
     
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
     
+    # Build context-aware prompt
     prompt = f"""Please regenerate the following paragraph{' ' + instruction if instruction else ''}:
     
-Paragraph to regenerate:
-{paragraph}
-"""
+    Paragraph to regenerate:
+    {paragraph}
+    """
     
-    if context:
-        if context.get("previous_paragraphs"):
-            prompt += f"\nPrevious context:\n{'\n'.join(context['previous_paragraphs'])}\n"
-        if context.get("next_paragraphs"):
-            prompt += f"\nFollowing context:\n{'\n'.join(context['next_paragraphs'])}\n"
+    if context_window > 0:
+        prev_paras = context.get("previous_paragraphs", [])[-context_window:]
+        next_paras = context.get("next_paragraphs", [])[:context_window]
+        
+        if prev_paras:
+            prompt += f"\nPrevious context (for reference only):\n{'\n\n'.join(prev_paras)}\n"
+        if next_paras:
+            prompt += f"\nNext context (for reference only):\n{'\n\n'.join(next_paras)}\n"
     
-    prompt += "\nPlease provide only the regenerated paragraph, without any additional commentary or markup."
+    prompt += "\nPlease provide ONLY the regenerated paragraph, without any additional commentary or markup."
     
     messages.append({"role": "user", "content": prompt})
     
-    # Call your AI model here - this will depend on your specific implementation
     response = generate_text(
         prompt=prompt,
         model=model,
         temperature=temperature,
         system_prompt=system_prompt
     )
+    
+    return response.strip()
+
+
+# def regenerate_paragraph(paragraph, instruction=None, context=None, model=None, system_prompt=None, temperature=0.7):
+#     """
+#     Regenerate a single paragraph with optional instructions and context
+    
+#     Args:
+#         paragraph (str): The paragraph to regenerate
+#         instruction (str): How to modify the paragraph
+#         context (dict): Surrounding paragraphs for context
+#         model (str): Model identifier
+#         system_prompt (str): System message to guide the model
+#         temperature (float): Creativity parameter
+    
+#     Returns:
+#         str: Regenerated paragraph
+#     """
+#     messages = []
+    
+#     if system_prompt:
+#         messages.append({"role": "system", "content": system_prompt})
+    
+#     prompt = f"""Please regenerate the following paragraph{' ' + instruction if instruction else ''}:
+    
+# Paragraph to regenerate:
+# {paragraph}
+# """
+    
+#     if context:
+#         if context.get("previous_paragraphs"):
+#             prompt += f"\nPrevious context:\n{'\n'.join(context['previous_paragraphs'])}\n"
+#         if context.get("next_paragraphs"):
+#             prompt += f"\nFollowing context:\n{'\n'.join(context['next_paragraphs'])}\n"
+    
+#     prompt += "\nPlease provide only the regenerated paragraph, without any additional commentary or markup."
+    
+#     messages.append({"role": "user", "content": prompt})
+    
+#     # Call your AI model here - this will depend on your specific implementation
+#     response = generate_text(
+#         prompt=prompt,
+#         model=model,
+#         temperature=temperature,
+#         system_prompt=system_prompt
+#     )
     
     # Clean up the response to ensure we only get the paragraph
     return response.strip()

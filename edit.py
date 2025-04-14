@@ -1,7 +1,7 @@
 import streamlit as st
 from prompt_lib import SYSTEM_PROMPTS, USER_PROMPTS
 from story_manager import StoryManager
-from utils import generate_text, refine_text, split_into_paragraphs, join_paragraphs, regenerate_paragraph, generate_pdf
+from utils import generate_text, refine_text, split_into_paragraphs, join_paragraphs, delete_paragraph, regenerate_paragraph, generate_pdf
 import re
 
 # Available models with proper naming
@@ -31,7 +31,7 @@ MODELS = {
 def main():
     st.set_page_config(page_title="AI Story Writer", layout="wide")
     st.title("📖 AI Story Writer")
-    st.write("Generate and refine stories using Mistral or local Ollama models")
+    st.write("Generate and refine stories using Cloud or local AI models")
 
     # Initialize session state
     if "story_manager" not in st.session_state:
@@ -169,20 +169,21 @@ def main():
                             st.markdown(f"**Paragraph {i+1}:**")
                             st.write(paragraph)
                         with btn_col:
-                            if st.button("✏️ Edit", key=f"edit_btn_{i}"):
+                            if st.button("✏️ Edit", key=f"edit_btn_{i}", help="Edit paragraph"):
                                 st.session_state.editing_paragraph = i
                                 st.rerun()
-                            if st.button("🔄 AI", key=f"regenerate_{i}"):
+                            if st.button("🔄 AI", key=f"regenerate_{i}", help="AI Regenerate"):
                                 with st.spinner(f"Regenerating paragraph {i+1}... "):
                                     try:
                                         context = {
-                                            "previous_paragraphs": st.session_state.edited_paragraphs[:i],
+                                            "previous_paragraphs": st.session_state.edited_paragraphs[i-1:i],
                                             "next_paragraphs": st.session_state.edited_paragraphs[i+1:]
                                         }
                                         regenerated = regenerate_paragraph(
                                             paragraph,
                                             instruction=st.session_state.user_prompt,
                                             context=context,
+                                            context_window=1,  # Just 1 paragraph before/after
                                             model=st.session_state.selected_model,
                                             system_prompt=st.session_state.system_prompt,
                                             temperature=st.session_state.temperature
@@ -191,7 +192,11 @@ def main():
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Regeneration failed: {str(e)}")
-                    
+                                        
+                            # Add this delete button
+                            if st.button("🗑️ Delete", key=f"delete_{i}", help="Delete Paragraph"):
+                                st.session_state.edited_paragraphs = delete_paragraph(st.session_state.edited_paragraphs, i)
+                                st.rerun()
                     # Add a visual separator between paragraphs
                     st.markdown("---")
             
@@ -351,14 +356,16 @@ def main():
                     st.warning("Please select at least 2 paragraphs to combine")
 
             # Add AI regeneration with instructions and numbered paragraphs
-            st.subheader("AI Paragraph Regeneration")
-            regen_instruction = st.text_input(
-                "Instructions for regeneration",
-                "Make this more descriptive and engaging",
-                key="regen_instruction"
-            )
-            
             # Create options with paragraph numbers and preview text
+            st.subheader("AI Paragraph Regeneration")
+            # In your Paragraph Tools section (col2):
+            context_window = st.slider(
+                "Context window (paragraphs before/after)", 
+                0, 3, 1,
+                help="How many surrounding paragraphs to consider when regenerating"
+            )
+
+            
             paragraph_options = []
             for i, para in enumerate(st.session_state.edited_paragraphs):
                 preview = para[:30] + "..." if len(para) > 30 else para
@@ -367,6 +374,12 @@ def main():
             selected_para = st.selectbox(
                 "Select paragraph to regenerate",
                 options=paragraph_options
+            )
+            
+            regen_instruction = st.text_input(
+                "Instructions for regeneration",
+                "Make this more descriptive and engaging",
+                key="regen_instruction"
             )
             
             if st.button("Regenerate Selected Paragraph", use_container_width=True):
@@ -381,6 +394,7 @@ def main():
                         regenerated = regenerate_paragraph(
                             st.session_state.edited_paragraphs[para_index],
                             instruction=regen_instruction,
+                            context_window=context_window,
                             context=context,
                             model=st.session_state.selected_model,
                             system_prompt=st.session_state.system_prompt,
