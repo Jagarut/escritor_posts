@@ -94,10 +94,30 @@ def main():
         # Version history
         st.header("Version History")
         if st.session_state.story_manager.versions:
+            # Add a selectbox for version recovery
+            version_options = [
+                f"v{i+1}: {v['feedback'][:30]}..." 
+                for i, v in enumerate(st.session_state.story_manager.get_version_history())
+            ]
+            selected_version = st.selectbox(
+                "Recover version:",
+                options=version_options,
+                index=len(version_options)-1,  # Default to latest
+                key="version_selector"
+            )
+
+            # Add restore button
+            if st.button("Restore This Version", key="restore_version"):
+                version_index = version_options.index(selected_version)
+                version = st.session_state.story_manager.get_version(version_index)
+                st.session_state.edited_paragraphs = split_into_paragraphs(version["text"])
+                st.rerun()
+
+            # Keep your existing expander view
             for i, version in enumerate(st.session_state.story_manager.get_version_history()):
                 with st.expander(f"v{i+1}: {version['feedback'][:50]}..."):
                     st.caption(version["feedback"])
-                    st.code(version["text"][:200] + ("..." if len(version["text"]) > 200 else ""))
+                    st.code(version["text"][:200] + ("..." if len(version["text"]) > 200 else ""))                
 
     # Main content area
     col1, col2 = st.columns([3, 2])
@@ -191,6 +211,21 @@ def main():
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Regeneration failed: {str(e)}")
+                                        
+                            # Replace your quick recovery button code with this:
+
+                            if len(st.session_state.story_manager.versions) > 1:
+                                if st.button("↩️ Back", type="secondary", help="Revert to the version before last"):
+                                    try:
+                                        prev_version = st.session_state.story_manager.get_version(-2)  # -2 gets previous version
+                                        if prev_version:
+                                            st.session_state.edited_paragraphs = split_into_paragraphs(prev_version["text"])
+                                            st.success(f"Restored version from: {prev_version['feedback'][:50]}...")
+                                            st.rerun()
+                                        else:
+                                            st.warning("Previous version not found or invalid")
+                                    except Exception as e:
+                                        st.error(f"Restore failed: {str(e)}")
                                         
                             # Add this delete button
                             if st.button("🗑️ Delete", key=f"delete_{i}", help="Delete Paragraph"):
