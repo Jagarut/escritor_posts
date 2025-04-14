@@ -31,7 +31,7 @@ MODELS = {
 def main():
     st.set_page_config(page_title="AI Story Writer", layout="wide")
     st.title("📖 AI Story Writer")
-    st.write("Generate and refine stories using Cloud or local AI models")
+    st.write("Generate and refine stories using Cloud or Local AI models")
 
     # Initialize session state
     if "story_manager" not in st.session_state:
@@ -49,7 +49,6 @@ def main():
         
         # Model selection
         current_model = st.session_state.selected_model
-        # display_name = next(k for k, v in MODELS.items() if v == current_model)
         selected_display = st.selectbox(
             "AI Model",
             options=list(MODELS.keys()),
@@ -71,13 +70,13 @@ def main():
         
         # User prompt selection
         selected_prompt = st.selectbox(
-            "Instructions(user prompt)",
+            "Instructions(automatic AI paragraph regeneration)",
             options=list(USER_PROMPTS.keys()),
             index=list(USER_PROMPTS.values()).index(st.session_state.user_prompt),
             key="user_prompt_select"
         )
         st.session_state.user_prompt = USER_PROMPTS[selected_prompt]
-        st.info(f"Prompt: {st.session_state.user_prompt[:50]}...")
+        st.info(f"Prompt: {st.session_state.user_prompt[:70]}...")
         
         # Temperature control
         st.session_state.temperature = st.slider(
@@ -240,6 +239,25 @@ def main():
     with col2:
         if st.session_state.story_manager.versions:
             st.subheader("Quick Refinement Presets")
+            
+            if st.button("Eliminate repetition", use_container_width=True):
+                with st.spinner("Eliminating repetition..."):
+                    try:
+                        current_text = join_paragraphs(st.session_state.edited_paragraphs)
+                        refined = refine_text(
+                            current_text,
+                            user_feedback="""Revise the following story to eliminate repetitive phrases, 
+                            tighten the prose, and enhance readability. 
+                            Keep the original meaning and tone intact, but make the narrative more fluid and pleasant to read. 
+                            Focus on varying sentence structure and word choice to avoid redundancy.""",
+                            model=st.session_state.selected_model,
+                            system_prompt=st.session_state.system_prompt
+                        )
+                        st.session_state.story_manager.add_version(refined, "Translated to Spanish")
+                        st.session_state.edited_paragraphs = split_into_paragraphs(refined)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(str(e))
             
             if st.button("Translate to Spanish", use_container_width=True):
                 with st.spinner("Translating to Spanish..."):
