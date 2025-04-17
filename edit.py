@@ -36,7 +36,7 @@ def main():
     # Initialize session state
     if "story_manager" not in st.session_state:
         st.session_state.story_manager = StoryManager()
-        st.session_state.versions = None
+        # st.session_state.versions = None
         st.session_state.selected_model = "mistral-small-latest"
         st.session_state.temperature = 0.7
         st.session_state.system_prompt = SYSTEM_PROMPTS["Obedient AI"]
@@ -218,10 +218,13 @@ def main():
                             if len(st.session_state.story_manager.versions) > 1:
                                 if st.button("↩️ Back", type="secondary", help="Revert to the version before last", key=f"back_{i}"):
                                     try:
-                                        prev_version = st.session_state.story_manager.get_version(-2)  # -2 gets previous version
+                                        index = len(st.session_state.story_manager.versions) - 1
+                                        prev_version = st.session_state.story_manager.get_version(index)  # -2 gets previous version
+                                        print(f"len(st.session_state.story_manager.versions): {len(st.session_state.story_manager.versions)}")
+                                        print(f"Previous version: {prev_version}")
                                         if prev_version and "text" in prev_version:
                                             st.session_state.edited_paragraphs = split_into_paragraphs(prev_version["text"])
-                                            st.success(f"Restored version from: {prev_version['feedback'][:50]}...")
+                                            st.success(f"Restored previous version from: {prev_version['feedback'][:50]}...")
                                             st.rerun()
                                         else:
                                             st.warning("Previous version not found or invalid")
