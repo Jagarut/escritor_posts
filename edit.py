@@ -51,6 +51,9 @@ def main():
         st.session_state.user_prompt = USER_PROMPTS["Add Dialogue"]
         st.session_state.editing_paragraph = None
         st.session_state.edited_paragraphs = []
+    
+    if "regenerating_paragraph" not in st.session_state:
+        st.session_state.regenerating_paragraph = None
 
     # Sidebar for controls
     with st.sidebar:
@@ -200,28 +203,11 @@ def main():
                             if st.button("✏️ Edit", key=f"edit_btn_{i}", help="Edit paragraph"):
                                 st.session_state.editing_paragraph = i
                                 st.rerun()
+                                
                             if st.button("🔄 AI", key=f"regenerate_{i}", help="AI Regenerate"):
                                 with st.spinner(f"Regenerating paragraph {i+1}... "):
-                                    try:
-                                        context = {
-                                            "previous_paragraphs": st.session_state.edited_paragraphs[i-1:i],
-                                            "next_paragraphs": st.session_state.edited_paragraphs[i+1:]
-                                        }
-                                        regenerated = regenerate_paragraph(
-                                            paragraph,
-                                            instruction=st.session_state.user_prompt,
-                                            context=context,
-                                            context_window=1,  # Just 1 paragraph before/after
-                                            model=st.session_state.selected_model,
-                                            system_prompt=st.session_state.system_prompt,
-                                            temperature=st.session_state.temperature
-                                        )
-                                        st.session_state.edited_paragraphs[i] = regenerated
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"Regeneration failed: {str(e)}")
-                                        
-                            # Replace your quick recovery button code with this:
+                                    st.session_state.regenerating_paragraph = i
+                                    st.rerun()
 
                             if len(st.session_state.story_manager.versions) > 1:
                                 if st.button("↩️ Back", type="secondary", help="Revert to the version before last", key=f"back_{i}"):
@@ -243,6 +229,51 @@ def main():
                             if st.button("🗑️ Delete", key=f"delete_{i}", help="Delete Paragraph"):
                                 st.session_state.edited_paragraphs = delete_paragraph(st.session_state.edited_paragraphs, i)
                                 st.rerun()
+                                
+                                
+                        # AI Regeneration Input Box (only shows for the selected paragraph)
+                        if st.session_state.get('regenerating_paragraph') == i:
+                            with st.form(key=f"regen_form_{i}"):
+                                instruction = st.text_area(
+                                    "How should we regenerate this paragraph?",
+                                    # "Make this more descriptive and engaging",
+                                    st.session_state.user_prompt,
+                                    height=300,
+                                    key=f"regen_instruction_{i}"
+                                )
+                                # Context window slider
+                                context_window = st.slider(
+                                    "Include surrounding paragraphs for context",
+                                    0, 3, 0,
+                                    key=f"context_{i}"
+                                )
+                                submit_col, cancel_col = st.columns(2)
+                                with submit_col:
+                                    if st.form_submit_button("Regenerate"):
+                                        with st.spinner(f"Regenerating paragraph {i+1}..."):
+                                            try:
+                                                context = {
+                                                    "previous_paragraphs": st.session_state.edited_paragraphs[max(0,i-context_window):i],
+                                                    "next_paragraphs": st.session_state.edited_paragraphs[i+1:i+1+context_window]
+                                                }
+                                                regenerated = regenerate_paragraph(
+                                                    paragraph,
+                                                    instruction=instruction,
+                                                    context=context,
+                                                    model=st.session_state.selected_model,
+                                                    system_prompt=st.session_state.system_prompt,
+                                                    temperature=st.session_state.temperature
+                                                )
+                                                st.session_state.edited_paragraphs[i] = regenerated
+                                                st.session_state.regenerating_paragraph = None
+                                                st.rerun()
+                                            except Exception as e:
+                                                st.error(f"Regeneration failed: {str(e)}")
+                                with cancel_col:
+                                    if st.form_submit_button("Cancel"):
+                                        st.session_state.regenerating_paragraph = None
+                                        st.rerun()
+                                        
                     # Add a visual separator between paragraphs
                     st.markdown("---")
             
