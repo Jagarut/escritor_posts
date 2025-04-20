@@ -1,7 +1,7 @@
 import streamlit as st
 from prompt_lib import SYSTEM_PROMPTS, USER_PROMPTS
 from story_manager import StoryManager
-from utils import generate_text, refine_text, split_into_paragraphs, join_paragraphs, delete_paragraph, regenerate_paragraph, generate_pdf
+from utils import generate_text, refine_text, split_into_paragraphs, join_paragraphs, delete_paragraph, regenerate_paragraph, generate_pdf, insert_empty_paragraph
 import re
 
 # Available models with proper naming
@@ -200,17 +200,17 @@ def main():
                             st.markdown(f"**Paragraph {i+1}:**")
                             st.write(paragraph)
                         with btn_col:
-                            if st.button("✏️ Edit", key=f"edit_btn_{i}", help="Edit paragraph"):
+                            if st.button("✏️", key=f"edit_btn_{i}", help="Edit paragraph"):
                                 st.session_state.editing_paragraph = i
                                 st.rerun()
                                 
-                            if st.button("🔄 AI", key=f"regenerate_{i}", help="AI Regenerate"):
+                            if st.button("🔄", key=f"regenerate_{i}", help="Regenerate paragraph with AI"):
                                 with st.spinner(f"Regenerating paragraph {i+1}... "):
                                     st.session_state.regenerating_paragraph = i
                                     st.rerun()
 
                             if len(st.session_state.story_manager.versions) > 1:
-                                if st.button("↩️ Back", type="secondary", help="Revert to the version before last", key=f"back_{i}"):
+                                if st.button("↩️", type="secondary", help="Revert to the version before last", key=f"back_{i}"):
                                     try:
                                         index = len(st.session_state.story_manager.versions) - 1
                                         prev_version = st.session_state.story_manager.get_version(index)  # -2 gets previous version
@@ -226,8 +226,16 @@ def main():
                                         st.error(f"Restore failed: {str(e)}")
                                         
                             # Add this delete button
-                            if st.button("🗑️ Delete", key=f"delete_{i}", help="Delete Paragraph"):
+                            if st.button("🗑️", key=f"delete_{i}", help="Delete Paragraph"):
                                 st.session_state.edited_paragraphs = delete_paragraph(st.session_state.edited_paragraphs, i)
+                                st.rerun()
+                            
+                            # Add this button to add a paragraph below
+                            if st.button("⤵️", key=f"add_below_{i}", help="Add a paragraph below"):
+                                st.session_state.edited_paragraphs = insert_empty_paragraph(
+                                    st.session_state.edited_paragraphs, i
+                                )
+                                st.session_state.editing_paragraph = i+1  # Focus on new empty para
                                 st.rerun()
                                 
                                 

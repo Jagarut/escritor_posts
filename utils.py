@@ -334,84 +334,7 @@ def regenerate_paragraph(
     return response.strip()
 
 
-# def regenerate_paragraph(paragraph, instruction=None, context=None, model=None, system_prompt=None, temperature=0.7):
-#     """
-#     Regenerate a single paragraph with optional instructions and context
     
-#     Args:
-#         paragraph (str): The paragraph to regenerate
-#         instruction (str): How to modify the paragraph
-#         context (dict): Surrounding paragraphs for context
-#         model (str): Model identifier
-#         system_prompt (str): System message to guide the model
-#         temperature (float): Creativity parameter
-    
-#     Returns:
-#         str: Regenerated paragraph
-#     """
-#     messages = []
-    
-#     if system_prompt:
-#         messages.append({"role": "system", "content": system_prompt})
-    
-#     prompt = f"""Please regenerate the following paragraph{' ' + instruction if instruction else ''}:
-    
-# Paragraph to regenerate:
-# {paragraph}
-# """
-    
-#     if context:
-#         if context.get("previous_paragraphs"):
-#             prompt += f"\nPrevious context:\n{'\n'.join(context['previous_paragraphs'])}\n"
-#         if context.get("next_paragraphs"):
-#             prompt += f"\nFollowing context:\n{'\n'.join(context['next_paragraphs'])}\n"
-    
-#     prompt += "\nPlease provide only the regenerated paragraph, without any additional commentary or markup."
-    
-#     messages.append({"role": "user", "content": prompt})
-    
-#     # Call your AI model here - this will depend on your specific implementation
-#     response = generate_text(
-#         prompt=prompt,
-#         model=model,
-#         temperature=temperature,
-#         system_prompt=system_prompt
-#     )
-    
-    # Clean up the response to ensure we only get the paragraph
-    return response.strip()
-
-
-
-# def generate_pdf(story_content, title="AI Generated Story", author="AI Story Writer"):
-#     """Generate a PDF document from the story content"""
-#     pdf = FPDF()
-#     pdf.set_auto_page_break(auto=True, margin=15)
-    
-#     # Add a page
-#     pdf.add_page()
-    
-#     # Set font for title
-#     pdf.set_font("Arial", 'B', 16)
-#     pdf.cell(0, 10, title, 0, 1, 'C')
-    
-#     # Set font for author
-#     pdf.set_font("Arial", 'I', 12)
-#     pdf.cell(0, 10, f"by {author}", 0, 1, 'C')
-    
-#     # Add space
-#     pdf.ln(10)
-    
-#     # Set font for content
-#     pdf.set_font("Arial", '', 12)
-    
-#     # Add story content with proper paragraph handling
-#     for paragraph in story_content.split('\n\n'):
-#         pdf.multi_cell(0, 8, paragraph.strip())
-#         pdf.ln(5)  # Add space between paragraphs
-    
-#     return pdf
-
 from fpdf import FPDF
 from io import BytesIO
 
@@ -455,34 +378,6 @@ def generate_pdf(story_content, title="AI Generated Story", author="AI Story Wri
     
     return pdf
                         
-# Create PDF generation function if not already imported
-# def generate_pdf(text, title, author):
-    
-#     pdf = FPDF()
-#     pdf.add_page()
-#     pdf.set_auto_page_break(auto=True, margin=15)
-    
-#     # Set font for title
-#     pdf.set_font("Arial", "B", 16)
-#     pdf.cell(0, 10, title, ln=True, align="C")
-    
-#     # Add author
-#     pdf.set_font("Arial", "I", 12)
-#     pdf.cell(0, 10, f"By: {author}", ln=True, align="C")
-#     pdf.ln(5)
-    
-#     # Set font for body text
-#     pdf.set_font("Arial", "", 12)
-    
-#     # Split text into paragraphs and add to PDF
-#     paragraphs = text.split("\n\n")
-#     for paragraph in paragraphs:
-#         pdf.multi_cell(0, 10, paragraph)
-#         pdf.ln(5)
-        
-#     return pdf
-# prompt = "Write a first-kiss scene between two rivals in a candlelit library."
-
-# r = generate_text(prompt,  model="ollama/hermes3:3b")
-# # r = generate_text(prompt)
-# print(r)
+def insert_empty_paragraph(paragraphs, index):
+    """Insert an empty paragraph at specified position"""
+    return paragraphs[:index+1] + [""] + paragraphs[index+1:]
