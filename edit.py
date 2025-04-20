@@ -9,11 +9,19 @@ MODELS = {
     "Mistral Small": "mistral-small-latest",
     "Mistral Medium": "mistral-medium-latest",
     "Groq Gemma2:9b": "groq/gemma2-9b-it",
-    "Groq Qwen-2.5:32b": "groq/qwen-2.5-32b",
+    "Groq Llama3.1:8b": "groq/llama-3.1-8b-instant",
     "Groq Qwen-Qwq:32b": "groq/qwen-qwq-32b",
     "Groq Llama Scout": "groq/meta-llama/llama-4-scout-17b-16e-instruct",
     "Groq Llama Maverick": "groq/meta-llama/llama-4-maverick-17b-128e-instruct",
     "Groq LLama Versatile:70b": "groq/llama-3.3-70b-versatile",
+    "Cerebras llama3.1-8b": "cerebras/llama3.1-8b",
+    "Cerebras llama3.3-70b": "cerebras/llama-3.3-70b",
+    "Cerebras llama-4-scout-17b": "cerebras/llama-4-scout-17b-16e-instruct",
+    "SambaNova DeepSeek-V3-0324": "samba/DeepSeek-V3-0324",
+    "SambaNova Llama-3.1-8B-Instruct": "samba/Meta-Llama-3.1-8B-Instruct",
+    "SambaNova Llama-3.2-3B-Instruct": "samba/Meta-Llama-3.2-3B-Instruct",
+    "SambaNova Llama-3.3-70B-Instruct": "samba/Meta-Llama-3.3-70B-Instruct",
+    "SambaNova Llama-3.1-405B-Instruct": "samba/Meta-Llama-3.1-405B-Instruct",
     "Ollama Mistral": "ollama/mistral",
     "Ollama Hermes 3:3b": "ollama/hermes3:3b",
     "Ollama Llama3.2": "ollama/llama3.2:3b",
@@ -292,7 +300,7 @@ def main():
                             model=st.session_state.selected_model,
                             system_prompt=st.session_state.system_prompt
                         )
-                        st.session_state.story_manager.add_version(refined, "Translated to Spanish")
+                        st.session_state.story_manager.add_version(refined, "Repetition elimination")
                         st.session_state.edited_paragraphs = split_into_paragraphs(refined)
                         st.rerun()
                     except Exception as e:
@@ -304,7 +312,7 @@ def main():
                         current_text = join_paragraphs(st.session_state.edited_paragraphs)
                         refined = refine_text(
                             current_text,
-                            SYSTEM_PROMPTS["Traductor English to Spanish"],
+                            SYSTEM_PROMPTS["Traductor Sys Prompt"],
                             model=st.session_state.selected_model,
                             system_prompt=st.session_state.system_prompt
                         )
