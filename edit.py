@@ -1,7 +1,11 @@
 import streamlit as st
 from prompt_lib import SYSTEM_PROMPTS, USER_PROMPTS
 from story_manager import StoryManager
-from utils import generate_text, refine_text, split_into_paragraphs, join_paragraphs, delete_paragraph, regenerate_paragraph, generate_pdf, insert_empty_paragraph
+from utils import (generate_text, refine_text, split_into_paragraphs, 
+                   join_paragraphs, delete_paragraph, regenerate_paragraph, 
+                   generate_pdf, generate_epub, 
+                   insert_empty_paragraph, move_paragraph_up, move_paragraph_down
+)
 import re
 
 # Available models with proper naming
@@ -194,21 +198,45 @@ def main():
                                 st.rerun()
                     else:
                         # Display paragraph and buttons side by side
-                        text_col, btn_col = st.columns([4, 1])
+                        text_col, btn_col1, btn_col2 = st.columns([4, 0.5, 0.5])
                         with text_col:
                             # Add paragraph number as a label
                             st.markdown(f"**Paragraph {i+1}:**")
                             st.write(paragraph)
-                        with btn_col:
+                        with btn_col1:
+                            if st.button("⬆️", key=f"move_up_{i}", help="Move paragraph up", disabled=(i == 0)):
+                               st.session_state.edited_paragraphs = move_paragraph_up(
+                                   st.session_state.edited_paragraphs, i
+                               )
+                               st.rerun()
+                        with btn_col2:       
+                            if st.button("⬇️", key=f"move_down_{i}", help="Move paragraph down", disabled=(i == len(st.session_state.edited_paragraphs)-1)):
+                                st.session_state.edited_paragraphs = move_paragraph_down(
+                                    st.session_state.edited_paragraphs, i
+                                )
+                                st.rerun()   
+                        with btn_col1:        
                             if st.button("✏️", key=f"edit_btn_{i}", help="Edit paragraph"):
                                 st.session_state.editing_paragraph = i
                                 st.rerun()
-                                
+                        with btn_col2:        
                             if st.button("🔄", key=f"regenerate_{i}", help="Regenerate paragraph with AI"):
                                 with st.spinner(f"Regenerating paragraph {i+1}... "):
                                     st.session_state.regenerating_paragraph = i
                                     st.rerun()
-
+                        with btn_col1:
+                            # Add this button to add a paragraph below
+                            if st.button("➕", key=f"add_below_{i}", help="Add a paragraph below"):
+                                st.session_state.edited_paragraphs = insert_empty_paragraph(
+                                    st.session_state.edited_paragraphs, i
+                                )
+                                st.rerun()
+                        with btn_col2:
+                            # Add this delete button
+                            if st.button("🗑️", key=f"delete_{i}", help="Delete Paragraph"):
+                                st.session_state.edited_paragraphs = delete_paragraph(st.session_state.edited_paragraphs, i)
+                                st.rerun()
+                            
                             if len(st.session_state.story_manager.versions) > 1:
                                 if st.button("↩️", type="secondary", help="Revert to the version before last", key=f"back_{i}"):
                                     try:
@@ -224,19 +252,6 @@ def main():
                                             st.warning("Previous version not found or invalid")
                                     except Exception as e:
                                         st.error(f"Restore failed: {str(e)}")
-                                        
-                            # Add this delete button
-                            if st.button("🗑️", key=f"delete_{i}", help="Delete Paragraph"):
-                                st.session_state.edited_paragraphs = delete_paragraph(st.session_state.edited_paragraphs, i)
-                                st.rerun()
-                            
-                            # Add this button to add a paragraph below
-                            if st.button("⤵️", key=f"add_below_{i}", help="Add a paragraph below"):
-                                st.session_state.edited_paragraphs = insert_empty_paragraph(
-                                    st.session_state.edited_paragraphs, i
-                                )
-                                st.session_state.editing_paragraph = i+1  # Focus on new empty para
-                                st.rerun()
                                 
                                 
                         # AI Regeneration Input Box (only shows for the selected paragraph)
@@ -509,40 +524,66 @@ def main():
                     except Exception as e:
                         st.error(f"Regeneration failed: {str(e)}")       
                         
-                        st.subheader("Export Options")
-            
+                        
+            st.subheader("Export Options")
+
+            if st.session_state.edited_paragraphs:
+                current_story = join_paragraphs(st.session_state.edited_paragraphs)
+            else:
+                st.warning("No content to export. Please generate or edit a story first.")
+
             # PDF Settings - moved outside the button click handler
             with st.expander("PDF Settings", expanded=False):
-                title = st.text_input("Title", "My AI-Generated Story")
-                author = st.text_input("Author", "AI Story Writer")
-            
-            # PDF Export
-            if st.button("📄 Export to PDF", use_container_width=True):
-                if st.session_state.edited_paragraphs:
-                    current_story = join_paragraphs(st.session_state.edited_paragraphs)
+                title = st.text_input("Title", "AI-Generated Story")
+                author = st.text_input("Author", "OMG")
 
-                    # Generate PDF
+            # PDF Export
+            if st.button("📄 Export to PDF", key="export_pdf", use_container_width=True):
+                 # Generate PDF
+                 try:
+                     pdf = generate_pdf(current_story, title, author)
+                     # Create download link
+                     from io import BytesIO
+                     pdf_bytes = BytesIO()
+                     pdf.output(pdf_bytes)
+                     pdf_bytes.seek(0)
+                     st.download_button(
+                         label="⬇️ Download PDF",
+                         data=pdf_bytes,
+                         file_name=f"{title.replace(' ', '_')}.pdf",
+                         mime="application/pdf",
+                         use_container_width=True
+                     )
+                 except Exception as e:
+                     st.error(f"PDF generation failed: {str(e)}")
+                     st.info("Make sure you have the fpdf library installed. Run: pip install fpdf")
+                
+
+            # EPUB Export
+            with st.expander("EPUB Settings"):
+                epub_title = st.text_input("Title", "AI-Generated Story", key="epub_title")
+                epub_author = st.text_input("Author", "OMG", key="epub_author")
+                # epub_filename = st.text_input("Filename", "ai_story.epub", key="epub_filename")
+
+            if st.button("📚 Export to EPUB", key="export_epub", use_container_width=True):
+                with st.spinner("Generating EPUB..."):
                     try:
-                        pdf = generate_pdf(current_story, title, author)
-                        
-                        # Create download link
-                        from io import BytesIO
-                        pdf_bytes = BytesIO()
-                        pdf.output(pdf_bytes)
-                        pdf_bytes.seek(0)
-                        
+                        epub_bytes = generate_epub(
+                            current_story,
+                            title=epub_title,
+                            author=epub_author
+                        )
+
                         st.download_button(
-                            label="⬇️ Download PDF",
-                            data=pdf_bytes,
-                            file_name=f"{title.replace(' ', '_')}.pdf",
-                            mime="application/pdf",
+                            label="⬇️ Download EPUB",
+                            data=epub_bytes,
+                            file_name=f"{epub_title}.epub",
+                            mime="application/epub+zip",
                             use_container_width=True
                         )
                     except Exception as e:
-                        st.error(f"PDF generation failed: {str(e)}")
-                        st.info("Make sure you have the fpdf library installed. Run: pip install fpdf")
-                else:
-                    st.warning("No content to export. Please generate or edit a story first.")
+                        st.error(f"EPUB generation failed: {str(e)}")
+                        st.error("Please ensure all paragraphs contain valid content")
              
 
 if __name__ == "__main__":

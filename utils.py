@@ -1,8 +1,10 @@
 import os
 import re 
+import markdown
 import ollama
 import lmstudio as lms
 from fpdf import FPDF
+from ebooklib import epub
 # from prompt_lib import PROMPT_LIBRARY
 from mistralai import Mistral
 from groq import Groq
@@ -377,7 +379,57 @@ def generate_pdf(story_content, title="AI Generated Story", author="AI Story Wri
         pdf.ln(5)
     
     return pdf
+
+
+
+from io import BytesIO
+
+def generate_epub(story_content, title="AI Generated Story", author="OMG Writer"):
+    """Generate EPUB file from story content and return bytes"""
+    # Create EPUB book
+    book = epub.EpubBook()
+    
+    # Create chapter
+    chapter = epub.EpubHtml(
+        title=title,
+        file_name='chapter.xhtml',
+        lang='en'
+    )
+    chapter.content = f"""
+    <h1>{title}</h1>
+    <h3>by {author}</h3>
+    <p>{story_content.replace('\n\n', '</p><p>')}</p>
+    """
+    
+    # Add items to book
+    book.add_item(chapter)
+    book.add_author(author)
+    # book.toc = (epub.Link('chapter.xhtml', 'Content', 'chapter1'),)
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = [ chapter]
+    
+    # Write to bytes buffer
+    buffer = BytesIO()
+    epub.write_epub(buffer, book, {})
+    buffer.seek(0)
+    return buffer.getvalue()
                         
 def insert_empty_paragraph(paragraphs, index):
     """Insert an empty paragraph at specified position"""
     return paragraphs[:index+1] + [""] + paragraphs[index+1:]
+
+
+def move_paragraph_up(paragraphs, index):
+    """Move paragraph up in the list"""
+    if index <= 0 or index >= len(paragraphs):
+        return paragraphs
+    paragraphs[index], paragraphs[index-1] = paragraphs[index-1], paragraphs[index]
+    return paragraphs
+
+def move_paragraph_down(paragraphs, index):
+    """Move paragraph down in the list"""
+    if index < 0 or index >= len(paragraphs)-1:
+        return paragraphs
+    paragraphs[index], paragraphs[index+1] = paragraphs[index+1], paragraphs[index]
+    return paragraphs
