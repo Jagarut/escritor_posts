@@ -52,12 +52,14 @@ def main():
         st.session_state.selected_model = "mistral-small-latest"
         st.session_state.temperature = 0.7
         st.session_state.system_prompt = SYSTEM_PROMPTS["Obedient AI"]
-        st.session_state.user_prompt = USER_PROMPTS["Add Dialogue"]
+        st.session_state.user_prompt = USER_PROMPTS["Empty Prompt"]
         st.session_state.editing_paragraph = None
         st.session_state.edited_paragraphs = []
     
     if "regenerating_paragraph" not in st.session_state:
         st.session_state.regenerating_paragraph = None
+    if "last_ai_paragraph" not in st.session_state:
+        st.session_state.last_ai_paragraph = None
 
     # Sidebar for controls
     with st.sidebar:
@@ -144,8 +146,8 @@ def main():
             st.subheader("Create New Story")
             user_prompt = st.text_area(
                 "Story prompt",
-                "Write a short story about: ",
-                height=150
+                st.session_state.user_prompt,
+                height=450
             )
             
             if st.button("Generate First Draft", use_container_width=True):
@@ -182,7 +184,7 @@ def main():
                             f"Paragraph {i+1}",
                             paragraph,
                             key=f"edit_{i}",
-                            height=150
+                            height=300
                         )
                         
                         # Create top-level columns for Save/Cancel buttons
@@ -215,15 +217,30 @@ def main():
                                     st.session_state.edited_paragraphs, i
                                 )
                                 st.rerun()   
+                        
                         with btn_col1:        
-                            if st.button("✏️", key=f"edit_btn_{i}", help="Edit paragraph"):
-                                st.session_state.editing_paragraph = i
-                                st.rerun()
-                        with btn_col2:        
                             if st.button("🔄", key=f"regenerate_{i}", help="Regenerate paragraph with AI"):
+                                # Save current paragraph before regenerating
+                                st.session_state.last_ai_paragraph = {
+                                    'index': i,
+                                    'content': st.session_state.edited_paragraphs[i]
+                                }
                                 with st.spinner(f"Regenerating paragraph {i+1}... "):
                                     st.session_state.regenerating_paragraph = i
                                     st.rerun()
+                        with btn_col2:
+                           if (st.session_state.last_ai_paragraph and 
+                                st.session_state.last_ai_paragraph['index'] == i):
+
+                                if st.button("🔥", key=f"undo_ai_{i}", help="Recover last paragraph"):
+                                    st.session_state.edited_paragraphs[i] = st.session_state.last_ai_paragraph['content']
+                                    st.session_state.last_ai_paragraph = None
+                                    st.rerun()
+                                    
+                        with btn_col2:        
+                            if st.button("✏️", key=f"edit_btn_{i}", help="Edit paragraph"):
+                                st.session_state.editing_paragraph = i
+                                st.rerun()
                         with btn_col1:
                             # Add this button to add a paragraph below
                             if st.button("➕", key=f"add_below_{i}", help="Add a paragraph below"):
@@ -236,9 +253,9 @@ def main():
                             if st.button("🗑️", key=f"delete_{i}", help="Delete Paragraph"):
                                 st.session_state.edited_paragraphs = delete_paragraph(st.session_state.edited_paragraphs, i)
                                 st.rerun()
-                            
+                        with btn_col1:    
                             if len(st.session_state.story_manager.versions) > 1:
-                                if st.button("↩️", type="secondary", help="Revert to the version before last", key=f"back_{i}"):
+                                if st.button("↩️", type="secondary", help="Revert to the previous story", key=f"back_{i}"):
                                     try:
                                         index = len(st.session_state.story_manager.versions) - 1
                                         prev_version = st.session_state.story_manager.get_version(index)  # -2 gets previous version
