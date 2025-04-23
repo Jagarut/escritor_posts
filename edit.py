@@ -187,6 +187,7 @@ def main():
                             height=300
                         )
                         
+                        
                         # Create top-level columns for Save/Cancel buttons
                         save_col, cancel_col = st.columns(2)
                         with save_col:
@@ -269,10 +270,52 @@ def main():
                                             st.warning("Previous version not found or invalid")
                                     except Exception as e:
                                         st.error(f"Restore failed: {str(e)}")
-                                
+                        
+    
                                 
                         # AI Regeneration Input Box (only shows for the selected paragraph)
                         if st.session_state.get('regenerating_paragraph') == i:
+                            # Context controls
+                            with st.expander("🛠️ Context Controls", expanded=False):
+                                context_window = st.slider(
+                                    "Include surrounding paragraphs for context",
+                                    0, 3, 1,  # Min: 0, Max: 3, Default: 1
+                                    key=f"context_window_{i}"
+                                )
+
+                                # Visual context preview
+                                if context_window > 0:
+                                    st.caption(f"Preview (AI will see these {context_window*2} paragraphs):")
+
+                                    # Show before paragraphs
+                                    for ctx_i in range(max(0, i-context_window), i):
+                                        st.text_area(
+                                            f"↑ Previous paragraph {ctx_i+1}",
+                                            st.session_state.edited_paragraphs[ctx_i],
+                                            height=75,
+                                            key=f"prev_{i}_{ctx_i}",
+                                            disabled=True
+                                        )
+
+                                    # Current paragraph being edited
+                                    st.text_area(
+                                        "→ Current paragraph",
+                                        paragraph,
+                                        height=100,
+                                        key=f"current_{i}",
+                                        disabled=True
+                                    )
+                                    
+                                    # Show after paragraphs
+                                    for ctx_i in range(i+1, min(len(st.session_state.edited_paragraphs), i+1+context_window)):
+                                        st.text_area(
+                                            f"↓ Next paragraph {ctx_i+1}",
+                                            st.session_state.edited_paragraphs[ctx_i],
+                                            height=75,
+                                            key=f"next_{i}_{ctx_i}",
+                                            disabled=True
+                                        )
+                                
                             with st.form(key=f"regen_form_{i}"):
                                 instruction = st.text_area(
                                     "How should we regenerate this paragraph?",
@@ -281,34 +324,28 @@ def main():
                                     height=300,
                                     key=f"regen_instruction_{i}"
                                 )
-                                # Context window slider
-                                context_window = st.slider(
-                                    "Include surrounding paragraphs for context",
-                                    0, 3, 0,
-                                    key=f"context_{i}"
-                                )
+
                                 submit_col, cancel_col = st.columns(2)
                                 with submit_col:
                                     if st.form_submit_button("Regenerate"):
                                         with st.spinner(f"Regenerating paragraph {i+1}..."):
                                             try:
-                                                context = {
-                                                    "previous_paragraphs": st.session_state.edited_paragraphs[max(0,i-context_window):i],
-                                                    "next_paragraphs": st.session_state.edited_paragraphs[i+1:i+1+context_window]
-                                                }
                                                 regenerated = regenerate_paragraph(
-                                                    paragraph,
+                                                    paragraph=paragraph,
+                                                    all_paragraphs=st.session_state.edited_paragraphs,
+                                                    paragraph_index=i,
                                                     instruction=instruction,
-                                                    context=context,
+                                                    context_window=context_window,  # Use the slider value
                                                     model=st.session_state.selected_model,
                                                     system_prompt=st.session_state.system_prompt,
                                                     temperature=st.session_state.temperature
                                                 )
                                                 st.session_state.edited_paragraphs[i] = regenerated
-                                                st.session_state.regenerating_paragraph = None
+                                                st.session_state.regenerating_paragraph = None  # Closes the edit window after regeneration
                                                 st.rerun()
                                             except Exception as e:
                                                 st.error(f"Regeneration failed: {str(e)}")
+                                                
                                 with cancel_col:
                                     if st.form_submit_button("Cancel"):
                                         st.session_state.regenerating_paragraph = None

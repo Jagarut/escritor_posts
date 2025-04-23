@@ -263,77 +263,121 @@ def delete_paragraph(paragraphs, index):
 
 
 def regenerate_paragraph(
-    paragraph, 
-    instruction=None, 
-    context = None,
-    context_window=1,  # Number of paragraphs to include before/after
-    model=None, 
-    system_prompt=None, 
-    temperature=0.7
+    paragraph,
+    all_paragraphs,  # Pass the full paragraphs list
+    paragraph_index,  # Current paragraph index
+    instruction=None,
+    context_window=2,  # How many paragraphs to consider before/after
+    **kwargs
 ):
     """
-    Regenerate a single paragraph with nearby context.
+    Enhanced regeneration with context awareness
     
     Args:
-        paragraph (str): The paragraph to regenerate
-        instruction (str): How to modify the paragraph
-        context (dict): Dictionary containing 'previous_paragraphs' and 'next_paragraphs'
-        context_window (int): How many paragraphs before/after to include
-        model (str): Model identifier
-        system_prompt (str): System message
-        temperature (float): Creativity control
-    
-    Returns:
-        str: Regenerated paragraph
+        paragraph: The paragraph to regenerate
+        all_paragraphs: Complete list of all paragraphs
+        paragraph_index: Position of current paragraph
+        instruction: How to modify the paragraph
+        context_window: How many surrounding paragraphs to consider
+        **kwargs: Other args for generate_text()
     """
-    if context is None:
-        context = {"previous_paragraphs": [], "next_paragraphs": []}
-    
-    if instruction is None:
-        instruction = "Improve this text while maintaining its original meaning and style."
-    
-    # messages = []
-    
-    # if system_prompt:
-    #     messages.append({"role": "system", "content": system_prompt})
+    # Get contextual paragraphs
+    prev_paras = all_paragraphs[max(0, paragraph_index-context_window):paragraph_index]
+    next_paras = all_paragraphs[paragraph_index+1:paragraph_index+1+context_window]
     
     # Build context-aware prompt
-    prompt = f"""
-    Refine this text based on the instructions below.
-    Return ONLY the refined text, no additional commentary.
+    prompt = f"""Improve this paragraph while maintaining context:
     
-    Instructions: {instruction}
-    ---
-    Text to refine:
+    Instruction: {instruction or "Make this more engaging"}
+
+    --- SURROUNDING CONTEXT ---
+    {'\n\n'.join(prev_paras) if prev_paras else '[BEGINNING OF DOCUMENT]'}
+
+    <<PARAGRAPH TO IMPROVE>>
     {paragraph}
-    """
-    # prompt = f"""Please refine the following paragraph{' ' + instruction if instruction else ''}:
+
+    {'\n\n'.join(next_paras) if next_paras else '[END OF DOCUMENT]'}
+    --- END CONTEXT ---
+
+    Please rewrite the marked paragraph to better fit its context:
     
-    # Paragraph to refine:
-    # {paragraph}
-    # """
+    Return ONLY the refined text, no additional commentary."""
     
-    if context_window > 0:
-        prev_paras = context.get("previous_paragraphs", [])[-context_window:]
-        next_paras = context.get("next_paragraphs", [])[:context_window]
+    return generate_text(prompt, **kwargs)
+
+
+# def regenerate_paragraph(
+#     paragraph, 
+#     instruction=None, 
+#     context = None,
+#     context_window=1,  # Number of paragraphs to include before/after
+#     model=None, 
+#     system_prompt=None, 
+#     temperature=0.7
+# ):
+#     """
+#     Regenerate a single paragraph with nearby context.
+    
+#     Args:
+#         paragraph (str): The paragraph to regenerate
+#         instruction (str): How to modify the paragraph
+#         context (dict): Dictionary containing 'previous_paragraphs' and 'next_paragraphs'
+#         context_window (int): How many paragraphs before/after to include
+#         model (str): Model identifier
+#         system_prompt (str): System message
+#         temperature (float): Creativity control
+    
+#     Returns:
+#         str: Regenerated paragraph
+#     """
+#     if context is None:
+#         context = {"previous_paragraphs": [], "next_paragraphs": []}
+    
+#     if instruction is None:
+#         instruction = "Improve this text while maintaining its original meaning and style."
+    
+#     # messages = []
+    
+#     # if system_prompt:
+#     #     messages.append({"role": "system", "content": system_prompt})
+    
+#     # Build context-aware prompt
+#     prompt = f"""
+#     Refine this text based on the instructions below.
+#     Return ONLY the refined text, no additional commentary.
+    
+#     Instructions: {instruction}
+#     ---
+#     Text to refine:
+#     {paragraph}
+#     """
+#     # prompt = f"""Please refine the following paragraph{' ' + instruction if instruction else ''}:
+    
+#     # Paragraph to refine:
+#     # {paragraph}
+#     # """
+    
+#     if context_window > 0:
+#         prev_paras = context.get("previous_paragraphs", [])[-context_window:]
+#         next_paras = context.get("next_paragraphs", [])[:context_window]
         
-        if prev_paras:
-            prompt += f"\nPrevious context (for reference only):\n{'\n\n'.join(prev_paras)}\n"
-        if next_paras:
-            prompt += f"\nNext context (for reference only):\n{'\n\n'.join(next_paras)}\n"
+#         if prev_paras:
+#             prompt += f"\nPrevious context (for reference only):\n{'\n\n'.join(prev_paras)}\n"
+#         if next_paras:
+#             prompt += f"\nNext context (for reference only):\n{'\n\n'.join(next_paras)}\n"
     
-    prompt += "\nPlease provide ONLY the regenerated paragraph, without any additional commentary or markup."
+#     prompt += "\nPlease provide ONLY the regenerated paragraph, without any additional commentary or markup."
     
-    # messages.append({"role": "user", "content": prompt})
+#     # messages.append({"role": "user", "content": prompt})
     
-    response = generate_text(
-        prompt=prompt,
-        model=model,
-        temperature=temperature,
-        system_prompt=system_prompt
-    )
+#     response = generate_text(
+#         prompt=prompt,
+#         model=model,
+#         temperature=temperature,
+#         system_prompt=system_prompt
+#     )
     
-    return response.strip()
+#     return response.strip()
 
 
     
