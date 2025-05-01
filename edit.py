@@ -1,9 +1,10 @@
 import streamlit as st
 from prompt_lib import SYSTEM_PROMPTS, USER_PROMPTS
+from styles_lib import STYLE_PRESETS
 from story_manager import StoryManager
 from utils import (generate_text, refine_text, split_into_paragraphs, 
                    join_paragraphs, delete_paragraph, regenerate_paragraph, 
-                   generate_pdf, generate_epub, 
+                   apply_style, generate_pdf, generate_epub, 
                    insert_empty_paragraph, move_paragraph_up, move_paragraph_down
 )
 import re
@@ -12,6 +13,8 @@ import re
 MODELS = {
     "Mistral Small": "mistral-small-latest",
     "Mistral Medium": "mistral-medium-latest",
+    "Mistral Large": "mistral-large-latest",
+    "Mistral Nemo": "open-mistral-nemo",
     "Groq Gemma2:9b": "groq/gemma2-9b-it",
     "Groq Llama3.1:8b": "groq/llama-3.1-8b-instant",
     "Groq Qwen-Qwq:32b": "groq/qwen-qwq-32b",
@@ -78,7 +81,7 @@ def main():
         
         # System prompt selection
         selected_prompt = st.selectbox(
-            "Writing Style(sytem prompt)",
+            "System Prompt",
             options=list(SYSTEM_PROMPTS.keys()),
             index=list(SYSTEM_PROMPTS.values()).index(st.session_state.system_prompt),
             key="sys_prompt_select"
@@ -86,6 +89,21 @@ def main():
         st.session_state.system_prompt = SYSTEM_PROMPTS[selected_prompt]
         st.info(f"System Prompt: {st.session_state.system_prompt[:50]}...")
         
+        st.markdown("---")
+        # Writing styles
+        selected_styles = st.multiselect(
+            "Writing Style",
+            options=list(STYLE_PRESETS.keys()),
+            default=["Tolkien"],  # Default style
+            key="style_presets"
+        )
+        # Live preview
+        with st.expander("Style Preview"):
+            st.caption("Current style mix:")
+            for style in selected_styles:
+                st.markdown(f"- {style}: *{STYLE_PRESETS[style][:50]}...*")
+                
+        st.markdown("---")
         # User prompt selection
         selected_prompt = st.selectbox(
             "Instructions(automatic AI paragraph regeneration)",
@@ -152,12 +170,16 @@ def main():
             
             if st.button("Generate First Draft", use_container_width=True):
                 with st.spinner(f"Generating with {selected_display}..."):
+                    enhanced_system_prompt = apply_style(
+                        st.session_state.get("style_presets", None),
+                        st.session_state.system_prompt
+                    )
                     try:
                         draft = generate_text(
                             prompt=f"{user_prompt}",
                             model=st.session_state.selected_model,
                             temperature=st.session_state.temperature,
-                            system_prompt=st.session_state.system_prompt
+                            system_prompt=enhanced_system_prompt
                         )
                         st.session_state.story_manager.add_version(draft, "Initial draft")
                         st.session_state.edited_paragraphs = split_into_paragraphs(draft)
@@ -233,7 +255,7 @@ def main():
                            if (st.session_state.last_ai_paragraph and 
                                 st.session_state.last_ai_paragraph['index'] == i):
 
-                                if st.button("🔥", key=f"undo_ai_{i}", help="Recover last paragraph"):
+                                if st.button("🔥", key=f"undo_ai_{i}", help="Undo Regeneration"):
                                     st.session_state.edited_paragraphs[i] = st.session_state.last_ai_paragraph['content']
                                     st.session_state.last_ai_paragraph = None
                                     st.rerun()
@@ -279,7 +301,7 @@ def main():
                             with st.expander("🛠️ Context Controls", expanded=False):
                                 context_window = st.slider(
                                     "Include surrounding paragraphs for context",
-                                    0, 3, 1,  # Min: 0, Max: 3, Default: 1
+                                    0, 3, 0,  # Min: 0, Max: 3, Default: 1
                                     key=f"context_window_{i}"
                                 )
 
@@ -329,6 +351,10 @@ def main():
                                 with submit_col:
                                     if st.form_submit_button("Regenerate"):
                                         with st.spinner(f"Regenerating paragraph {i+1}..."):
+                                            enhanced_system_prompt = apply_style(
+                                                st.session_state.get("style_presets", None),
+                                                st.session_state.system_prompt
+                                            )
                                             try:
                                                 regenerated = regenerate_paragraph(
                                                     paragraph=paragraph,
@@ -337,12 +363,13 @@ def main():
                                                     instruction=instruction,
                                                     context_window=context_window,  # Use the slider value
                                                     model=st.session_state.selected_model,
-                                                    system_prompt=st.session_state.system_prompt,
+                                                    system_prompt=enhanced_system_prompt,
                                                     temperature=st.session_state.temperature
                                                 )
                                                 st.session_state.edited_paragraphs[i] = regenerated
                                                 st.session_state.regenerating_paragraph = None  # Closes the edit window after regeneration
                                                 st.rerun()
+                                                st.success("Paragraph updated!")
                                             except Exception as e:
                                                 st.error(f"Regeneration failed: {str(e)}")
                                                 
@@ -371,13 +398,17 @@ def main():
             with refine_col1:
                 if st.button("Apply Changes", use_container_width=True):
                     with st.spinner(f"Refining with {selected_display}..."):
+                        enhanced_system_prompt = apply_style(
+                            st.session_state.get("style_presets", None),
+                            st.session_state.system_prompt
+                        )
                         try:
                             current_text = join_paragraphs(st.session_state.edited_paragraphs)
                             refined_text = refine_text(
                                 original_text=current_text,
                                 user_feedback=feedback,
                                 model=st.session_state.selected_model,
-                                system_prompt=st.session_state.system_prompt
+                                system_prompt=enhanced_system_prompt
                             )
                             st.session_state.story_manager.add_version(refined_text, feedback)
                             st.session_state.edited_paragraphs = split_into_paragraphs(refined_text)

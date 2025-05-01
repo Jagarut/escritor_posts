@@ -5,7 +5,7 @@ import ollama
 import lmstudio as lms
 from fpdf import FPDF
 from ebooklib import epub
-# from prompt_lib import PROMPT_LIBRARY
+from styles_lib import STYLE_PRESETS
 from mistralai import Mistral
 from groq import Groq
 from cerebras.cloud.sdk import Cerebras
@@ -21,6 +21,21 @@ mistral_client = Mistral(api_key=os.getenv("MISTRAL_API_KEY", ""))
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY", ""))
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+
+
+def apply_style(style_names, system_prompt=""):
+    """Augment system prompt with style instructions"""
+    styles = [STYLE_PRESETS[name] for name in style_names if name in STYLE_PRESETS]
+    if styles:
+        # print("="*20)
+        # print(f"styles:  {styles}")
+        # print("="*20)
+        prompt = f"{system_prompt}\n\nSTYLE INSTRUCTIONS:\n{'; '.join(styles)}"
+        # print(prompt)
+        return prompt
+    
+    # print(f"Ningun stilo: {system_prompt}")
+    return system_prompt
 
 
 def generate_text(
