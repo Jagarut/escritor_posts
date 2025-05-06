@@ -385,7 +385,7 @@ def main():
                                         st.session_state.splitting_paragraph = None
                                         st.session_state.split_preview = {'active': False}
                                         st.rerun()
-    
+
                         # AI Regeneration Input Box (only shows for the selected paragraph)
                         if st.session_state.get('regenerating_paragraph') == i:
                             # Context controls
@@ -599,14 +599,7 @@ def main():
                     except Exception as e:
                         st.error(str(e))
 
-            st.subheader("Paragraph Tools")
-        
-            # Add New Paragraph button
-            if st.button("Add New Paragraph", use_container_width=True):
-                st.session_state.edited_paragraphs.append("")
-                st.session_state.editing_paragraph = len(st.session_state.edited_paragraphs) - 1
-                st.rerun()
-
+            
             # Combine Paragraphs - Fixed Version
             st.write("---")
             st.subheader("Combine Paragraphs")
@@ -650,56 +643,6 @@ def main():
                 else:
                     st.warning("Please select at least 2 paragraphs to combine")
 
-            # Add AI regeneration with instructions and numbered paragraphs
-            # Create options with paragraph numbers and preview text
-            st.subheader("AI Paragraph Regeneration")
-            # In your Paragraph Tools section (col2):
-            context_window = st.slider(
-                "Context window (paragraphs before/after)", 
-                0, 3, 1,
-                help="How many surrounding paragraphs to consider when regenerating"
-            )
-
-            
-            paragraph_options = []
-            for i, para in enumerate(st.session_state.edited_paragraphs):
-                preview = para[:30] + "..." if len(para) > 30 else para
-                paragraph_options.append(f"Para {i+1}: {preview}")
-                
-            selected_para = st.selectbox(
-                "Select paragraph to regenerate",
-                options=paragraph_options
-            )
-            
-            regen_instruction = st.text_input(
-                "Instructions for regeneration",
-                "Make this more descriptive and engaging",
-                key="regen_instruction"
-            )
-            
-            if st.button("Regenerate Selected Paragraph", use_container_width=True):
-                # Extract paragraph index from the selected option
-                para_index = int(selected_para.split(":")[0].split()[1])-1
-                with st.spinner(f"Regenerating paragraph {para_index+1}..."):
-                    try:
-                        context = {
-                            "previous_paragraphs": st.session_state.edited_paragraphs[:para_index],
-                            "next_paragraphs": st.session_state.edited_paragraphs[para_index+1:]
-                        }
-                        regenerated = regenerate_paragraph(
-                            st.session_state.edited_paragraphs[para_index],
-                            instruction=regen_instruction,
-                            context_window=context_window,
-                            context=context,
-                            model=st.session_state.selected_model,
-                            system_prompt=st.session_state.system_prompt,
-                            temperature=st.session_state.temperature
-                        )
-                        st.session_state.edited_paragraphs[para_index] = regenerated
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Regeneration failed: {str(e)}")       
-                        
                         
             st.subheader("Export Options")
 

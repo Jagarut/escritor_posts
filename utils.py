@@ -312,7 +312,7 @@ def regenerate_paragraph(
     all_paragraphs,  # Pass the full paragraphs list
     paragraph_index,  # Current paragraph index
     instruction=None,
-    context_window=2,  # How many paragraphs to consider before/after
+    context_window=1,  # How many paragraphs to consider before/after
     **kwargs
 ):
     """
@@ -331,21 +331,45 @@ def regenerate_paragraph(
     next_paras = all_paragraphs[paragraph_index+1:paragraph_index+1+context_window]
     
     # Build context-aware prompt
-    prompt = f"""Improve this paragraph while maintaining context:
+    # prompt = f"""Improve this paragraph while maintaining context:
     
-    Instruction: {instruction or "Make this more engaging"}
+    # Instruction: {instruction or "Make this more engaging"}
 
-    --- SURROUNDING CONTEXT ---
-    {'\n\n'.join(prev_paras) if prev_paras else '[BEGINNING OF DOCUMENT]'}
+    # --- SURROUNDING CONTEXT ---
+    # {'\n\n'.join(prev_paras) if prev_paras else '[BEGINNING OF DOCUMENT]'}
 
-    <<PARAGRAPH TO IMPROVE>>
-    {paragraph}
+    # <<PARAGRAPH TO IMPROVE>>
+    # {paragraph}
 
-    {'\n\n'.join(next_paras) if next_paras else '[END OF DOCUMENT]'}
+    # {'\n\n'.join(next_paras) if next_paras else '[END OF DOCUMENT]'}
+    # --- END CONTEXT ---
+
+    # Please rewrite the marked paragraph to better fit its context:
+    
+    # Return ONLY the refined text, no additional commentary."""
+    
+    
+    prompt = f"""Rewrite this paragraph to {instruction or 'improve flow and style'} 
+    while maintaining consistency with the story context.
+
+    --- STORY CONTEXT ---
+    Previous {context_window} paragraph(s):
+    {'\n\n'.join(prev_paras[-context_window:]) if prev_paras else '[BEGINNING OF STORY]'}
+
+    Following {context_window} paragraph(s):
+    {'\n\n'.join(next_paras[:context_window]) if next_paras else '[END OF STORY]'}
     --- END CONTEXT ---
 
-    Please rewrite the marked paragraph to better fit its context:
-    
+    PARAGRAPH TO REWRITE:
+    {paragraph}
+
+    INSTRUCTIONS:
+    1. DO NOT copy entire sentences from context
+    2. Maintain the same POV and tense
+    3. Keep character actions consistent
+    4. Preserve key terms/names
+    5. Output ONLY the rewritten paragraph
+
     Return ONLY the refined text, no additional commentary."""
     
     return generate_text(prompt, **kwargs)
