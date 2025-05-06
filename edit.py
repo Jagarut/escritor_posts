@@ -4,7 +4,7 @@ from styles_lib import STYLE_PRESETS
 from story_manager import StoryManager
 from utils import (generate_text, refine_text, split_into_paragraphs, 
                    join_paragraphs, delete_paragraph, regenerate_paragraph, 
-                   apply_style, generate_pdf, generate_epub, 
+                   apply_style, generate_pdf, generate_epub, find_sentence_boundary_before_midpoint,
                    insert_empty_paragraph, move_paragraph_up, move_paragraph_down
 )
 import re
@@ -63,6 +63,16 @@ def main():
         st.session_state.regenerating_paragraph = None
     if "last_ai_paragraph" not in st.session_state:
         st.session_state.last_ai_paragraph = None
+    if 'splitting_paragraph' not in st.session_state:
+        st.session_state.splitting_paragraph = None
+    
+    if 'split_preview' not in st.session_state:
+        st.session_state.split_preview = {
+            'active': False,
+            'paragraph_idx': None,
+            'position': None,
+            'original_text': ""
+        }
 
     # Sidebar for controls
     with st.sidebar:
@@ -293,8 +303,89 @@ def main():
                                     except Exception as e:
                                         st.error(f"Restore failed: {str(e)}")
                         
-    
+                        with btn_col2: 
+                            if st.button("✂️", key=f"split_{i}", help="Split Paragraph"):
+                                st.session_state.splitting_paragraph = i
+                                st.rerun()
+                        # Split interface (appears when activated)
+                        if st.session_state.get('splitting_paragraph') == i:
+                            # Initialize preview data if just activated
+                            if not st.session_state.get('split_preview', {}).get('active', False):
+                                # Find sentence boundary for initial split position
+                                initial_split_pos = find_sentence_boundary_before_midpoint(paragraph)
                                 
+                                st.session_state.split_preview = {
+                                    'active': True,
+                                    'paragraph_idx': i,
+                                    'position': initial_split_pos,
+                                    'original_text': paragraph
+                                }
+                            # Get current values
+                            original = st.session_state.split_preview['original_text']    
+                            current_pos = st.session_state.split_preview['position']
+                            
+                            # Initialize the slider value in session state if it doesn't exist
+                            if f"split_slider_{i}" not in st.session_state:
+                                st.session_state[f"split_slider_{i}"] = current_pos
+    
+                            # Define a callback function to update the position
+                            def update_split_position():
+                                if f"split_slider_{i}" in st.session_state:
+                                    st.session_state.split_preview['position'] = st.session_state[f"split_slider_{i}"] 
+                            
+                            # Add a button to snap to sentence boundary
+                            if st.button("Snap to Sentence Boundary", key=f"snap_to_sentence_{i}", help="Snap to the original sentence boundary"):   
+                                sentence_boundary = find_sentence_boundary_before_midpoint(original)
+                                st.session_state.split_preview['position'] = sentence_boundary
+                                st.session_state[f"split_slider_{i}"] = sentence_boundary
+                                st.rerun()     
+                                      
+                            # Slider OUTSIDE the form for real-time updates
+                            new_pos = st.slider(
+                                "Adjust split point", 
+                                0, len(original), 
+                                key=f"split_slider_{i}",
+                                on_change=update_split_position
+                            )
+                            
+                            # Split the paragraph at the current position
+                            part1 = original[:new_pos].strip()
+                            part2 = original[new_pos:].strip()
+                                
+                            # Display real-time preview
+                            # st.markdown("**Preview:**")
+                            # col1par, col2par = st.columns(2)
+                            # with col1par:
+                            #     st.markdown("**First Part**")
+                            #     st.text(part1)
+                            # with col2par:
+                            #     st.markdown("**Second Part**")
+                            #     st.text(part2)    
+                        
+                            with st.form(key=f"split_form_{i}"):
+                                # Form for confirmation only
+                                st.text_area("First part:", value=part1, key=f"part1_{i}")
+                                st.text_area("Second part:", value=part2, key=f"part2_{i}")
+                                
+                                confirm_col, can_col = st.columns(2)
+                                with confirm_col:
+                                    # Apply/cancel
+                                    if st.form_submit_button("✓ Confirm Split"):
+                                        # Only proceed if both parts have content
+                                        if part1 and part2:
+                                            st.session_state.edited_paragraphs[i:i+1] = [part1, part2]
+                                            st.session_state.splitting_paragraph = None
+                                            st.session_state.split_preview = {'active': False}  # Reset
+                                            st.rerun()
+                                        else:
+                                            st.error("Cannot split: one of the parts would be empty.")
+                                
+                                with can_col:        
+                                    if st.form_submit_button("✗ Cancel"):
+                                        st.session_state.splitting_paragraph = None
+                                        st.session_state.split_preview = {'active': False}
+                                        st.rerun()
+    
                         # AI Regeneration Input Box (only shows for the selected paragraph)
                         if st.session_state.get('regenerating_paragraph') == i:
                             # Context controls

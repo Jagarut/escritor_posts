@@ -37,6 +37,36 @@ def apply_style(style_names, system_prompt=""):
     # print(f"Ningun stilo: {system_prompt}")
     return system_prompt
 
+def find_sentence_boundary_before_midpoint(text):
+    """Find the position of the last sentence end before the midpoint of the text."""
+    midpoint = len(text) // 2
+    
+    # Define sentence end patterns (period, question mark, exclamation mark followed by space or end of string)
+    sentence_end_pattern = r'[.!?](?:\s|$)'
+    
+    # Find all sentence boundaries
+    matches = list(re.finditer(sentence_end_pattern, text))
+    
+    if not matches:
+        return midpoint  # No sentence boundaries found, use midpoint
+    
+    # Find the last match before midpoint
+    last_before_midpoint = None
+    for match in matches:
+        end_pos = match.end()
+        if end_pos <= midpoint:
+            last_before_midpoint = end_pos
+        else:
+            break
+    
+    # If no sentence end before midpoint, use the first one after or the midpoint
+    if last_before_midpoint is None:
+        if matches:
+            return matches[0].end()  # First sentence end
+        return midpoint
+    
+    return last_before_midpoint
+
 
 def generate_text(
     prompt: str,
