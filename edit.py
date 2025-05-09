@@ -1,13 +1,14 @@
+import os
+import time
 import streamlit as st
 from prompt_lib import SYSTEM_PROMPTS, USER_PROMPTS
 from styles_lib import STYLE_PRESETS
 from story_manager import StoryManager
 from utils import (generate_text, refine_text, split_into_paragraphs, 
                    join_paragraphs, delete_paragraph, regenerate_paragraph, 
-                   apply_style, generate_pdf, generate_epub, find_sentence_boundary_before_midpoint,
-                   insert_empty_paragraph, move_paragraph_up, move_paragraph_down
+                   apply_style, generate_pdf, generate_epub, find_sentence_boundary_before_index,
+                   insert_empty_paragraph, move_paragraph_up, move_paragraph_down, save_work, load_work
 )
-import re
 
 # Available models with proper naming
 MODELS = {
@@ -73,7 +74,14 @@ def main():
             'position': None,
             'original_text': ""
         }
-
+    if "new_pos" not in st.session_state:
+        st.session_state.new_pos = None
+        
+    # Apply temporary stored values after rerun
+    if 'temp_model' in st.session_state:
+        st.session_state.selected_model = st.session_state.temp_model
+        del st.session_state.temp_model
+        
     # Sidebar for controls
     with st.sidebar:
         st.header("Settings")
@@ -101,10 +109,19 @@ def main():
         
         st.markdown("---")
         # Writing styles
+        default_styles = ["Tolkien"]  # Default style
+        if 'pending_styles' in st.session_state:
+            # Use loaded styles
+            pending_styles = st.session_state.pop('pending_styles')
+            # Filter to ensure all styles exist in STYLE_PRESETS
+            default_styles = [s for s in pending_styles if s in STYLE_PRESETS]
+            if not default_styles:  # If none of the loaded styles are valid
+                default_styles = ["Tolkien"]
+                
         selected_styles = st.multiselect(
             "Writing Style",
             options=list(STYLE_PRESETS.keys()),
-            default=["Tolkien"],  # Default style
+            default=default_styles,  # Default style
             key="style_presets"
         )
         # Live preview
@@ -163,7 +180,79 @@ def main():
             for i, version in enumerate(st.session_state.story_manager.get_version_history()):
                 with st.expander(f"v{i+1}: {version['feedback'][:50]}..."):
                     st.caption(version["feedback"])
-                    st.code(version["text"][:200] + ("..." if len(version["text"]) > 200 else ""))                
+                    st.code(version["text"][:200] + ("..." if len(version["text"]) > 200 else ""))      
+                    
+                    
+                    
+         # Replace the save/load section (lines 172-211) with this improved version
+        with st.expander("💾 Save/Load Work"):
+            # Save Section
+            st.subheader("Save Current Work")
+            save_name = st.text_input("Save as:", "my_story")
+            if st.button("💾 Save"):
+                # Determine what to save based on UI state
+                if st.session_state.edited_paragraphs:
+                    # We have paragraphs to save
+                    paragraphs_to_save = st.session_state.edited_paragraphs
+                else:
+                    # We're in the "Create New Story" UI, nothing to save yet
+                    st.warning("No content to save. Please generate a story first.")
+                    paragraphs_to_save = []
+                    
+                if paragraphs_to_save:
+                    file_path = save_work({
+                        'edited_paragraphs': paragraphs_to_save,
+                        'selected_model': st.session_state.selected_model,
+                        'style_presets': st.session_state.get('style_presets', []),
+                        'system_prompt': st.session_state.system_prompt
+                    }, f"DRAFTS/{save_name}.json")
+                    st.success(f"Saved to {file_path}")
+
+            # Load Section 
+            st.subheader("Load Previous Work")
+            uploaded_file = st.file_uploader("Choose JSON file", type="json")
+
+            if uploaded_file:
+                st.write("File selected. Click Load to proceed.")
+                if st.button("🔃 Load", key="load_button_unique"):
+                    try:
+                        st.write("Loading file...")  # Debug message
+                        loaded = load_work(uploaded_file)
+
+                        # Update paragraphs directly
+                        if 'paragraphs' in loaded and loaded['paragraphs']:
+                            # Store the paragraphs in session state
+                            st.session_state.edited_paragraphs = loaded['paragraphs']
+
+                            # Create a full text version from the paragraphs
+                            full_text = join_paragraphs(loaded['paragraphs'])
+
+                            # CRITICAL: Add this to the story manager to switch UI state
+                            # This ensures we see the "Current Draft" UI with our paragraphs
+                            st.session_state.story_manager.add_version(full_text, "Loaded from file")
+
+                        # Update model if available
+                        if loaded.get('model'):
+                            st.session_state.selected_model = loaded.get('model')
+
+                        # Update system prompt if available
+                        if loaded.get('system_prompt'):
+                            st.session_state.system_prompt = loaded.get('system_prompt')
+
+                        # For style presets, we'll set a flag to update after rerun
+                        if loaded.get('styles'):
+                            st.session_state.pending_styles = loaded.get('styles')
+
+                        st.success("Loaded successfully! Refreshing UI...")
+                        time.sleep(1)  # Short delay to ensure the success message is seen
+                        # Force a rerun to update the UI
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Load error: {str(e)}")
+                        
+            else:
+                st.write("Please select a file to load.")
+
 
     # Main content area
     col1, col2 = st.columns([3, 2])
@@ -312,7 +401,7 @@ def main():
                             # Initialize preview data if just activated
                             if not st.session_state.get('split_preview', {}).get('active', False):
                                 # Find sentence boundary for initial split position
-                                initial_split_pos = find_sentence_boundary_before_midpoint(paragraph)
+                                initial_split_pos = find_sentence_boundary_before_index(paragraph)
                                 
                                 st.session_state.split_preview = {
                                     'active': True,
@@ -332,14 +421,14 @@ def main():
                             def update_split_position():
                                 if f"split_slider_{i}" in st.session_state:
                                     st.session_state.split_preview['position'] = st.session_state[f"split_slider_{i}"] 
-                            
+                                    
                             # Add a button to snap to sentence boundary
-                            if st.button("Snap to Sentence Boundary", key=f"snap_to_sentence_{i}", help="Snap to the original sentence boundary"):   
-                                sentence_boundary = find_sentence_boundary_before_midpoint(original)
+                            if st.button("Snap to Sentence Boundary", key=f"snap_to_sentence_{i}", help="Snap to the index sentence boundary", use_container_width=True):   
+                                sentence_boundary = find_sentence_boundary_before_index(original, st.session_state['new_pos'])
                                 st.session_state.split_preview['position'] = sentence_boundary
                                 st.session_state[f"split_slider_{i}"] = sentence_boundary
-                                st.rerun()     
-                                      
+                                st.rerun()
+                                
                             # Slider OUTSIDE the form for real-time updates
                             new_pos = st.slider(
                                 "Adjust split point", 
@@ -348,6 +437,10 @@ def main():
                                 on_change=update_split_position
                             )
                             
+                            
+                            st.session_state.new_pos = new_pos
+
+                                
                             # Split the paragraph at the current position
                             part1 = original[:new_pos].strip()
                             part2 = original[new_pos:].strip()
@@ -703,6 +796,7 @@ def main():
                     except Exception as e:
                         st.error(f"EPUB generation failed: {str(e)}")
                         st.error("Please ensure all paragraphs contain valid content")
+             
              
 
 if __name__ == "__main__":

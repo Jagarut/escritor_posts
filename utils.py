@@ -3,6 +3,7 @@ import re
 import markdown
 import ollama
 import lmstudio as lms
+from datetime import datetime
 from fpdf import FPDF
 from ebooklib import epub
 from styles_lib import STYLE_PRESETS
@@ -37,35 +38,34 @@ def apply_style(style_names, system_prompt=""):
     # print(f"Ningun stilo: {system_prompt}")
     return system_prompt
 
-def find_sentence_boundary_before_midpoint(text):
-    """Find the position of the last sentence end before the midpoint of the text."""
-    midpoint = len(text) // 2
+def find_sentence_boundary_before_index(text, break_point=None):
+    import re
+    # If no break_point is given, default to midpoint
+    if break_point is None:
+        break_point = len(text) // 2
+    else:
+        # Ensure break_point is within valid range
+        break_point = max(0, min(break_point, len(text)))
+
+    # Look for sentence endings: . ? ! followed by space or end of string
+    pattern = r'[.!?](?:\s|$)'
     
-    # Define sentence end patterns (period, question mark, exclamation mark followed by space or end of string)
-    sentence_end_pattern = r'[.!?](?:\s|$)'
-    
-    # Find all sentence boundaries
-    matches = list(re.finditer(sentence_end_pattern, text))
-    
+    # Find all match positions
+    matches = [match.end() for match in re.finditer(pattern, text)]
+
     if not matches:
-        return midpoint  # No sentence boundaries found, use midpoint
-    
-    # Find the last match before midpoint
-    last_before_midpoint = None
-    for match in matches:
-        end_pos = match.end()
-        if end_pos <= midpoint:
-            last_before_midpoint = end_pos
+        return break_point  # No sentence boundaries found, fallback to break_point
+
+    # Return last match before break_point
+    best_match = None
+    for pos in matches:
+        if pos <= break_point:
+            best_match = pos
         else:
             break
-    
-    # If no sentence end before midpoint, use the first one after or the midpoint
-    if last_before_midpoint is None:
-        if matches:
-            return matches[0].end()  # First sentence end
-        return midpoint
-    
-    return last_before_midpoint
+
+    # If found, return it; otherwise, return first match overall
+    return best_match if best_match is not None else matches[0]
 
 
 def generate_text(
@@ -546,3 +546,53 @@ def move_paragraph_down(paragraphs, index):
         return paragraphs
     paragraphs[index], paragraphs[index+1] = paragraphs[index+1], paragraphs[index]
     return paragraphs
+
+
+def save_work(session_data, file_path=None):
+    """Saves current work to a JSON file"""
+    save_data = {
+        'paragraphs': session_data.get('edited_paragraphs', []),
+        'metadata': {
+            'created': datetime.now().isoformat(),
+            'model': session_data.get('selected_model'),
+            'style': session_data.get('style_presets', []),
+            'system_prompt': session_data.get('system_prompt')
+        }
+    }
+    
+    if not file_path:
+        file_path = f"work_in_progress_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
+    
+    with open(file_path, 'w') as f:
+        json.dump(save_data, f, indent=2)
+    
+    return file_path
+
+
+def load_work(uploaded_file):
+    """Loads work from either file path or Streamlit UploadedFile"""
+    try:
+        # Get file content
+        if hasattr(uploaded_file, 'getvalue'):
+            file_content = uploaded_file.getvalue().decode("utf-8")
+        else:
+            file_content = open(uploaded_file).read()
+        
+        # Parse JSON
+        file_data = json.loads(file_content)
+        
+        # Extract paragraphs
+        paragraphs = file_data.get('paragraphs', [])
+        if not paragraphs and 'edited_paragraphs' in file_data:
+            paragraphs = file_data['edited_paragraphs']
+        
+        return {
+            'paragraphs': paragraphs,
+            'model': file_data.get('metadata', {}).get('model'),
+            'styles': file_data.get('metadata', {}).get('style', []),
+            'system_prompt': file_data.get('metadata', {}).get('system_prompt', '')
+        }
+    except Exception as e:
+        raise Exception(f"Failed to parse JSON file: {str(e)}")
+
+
