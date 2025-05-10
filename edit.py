@@ -16,6 +16,7 @@ MODELS = {
     "Mistral Medium": "mistral-medium-latest",
     "Mistral Large": "mistral-large-latest",
     "Mistral Nemo": "open-mistral-nemo",
+    "OpenRouter Qwen3:32b": "or/qwen/qwen3-32b:free",
     "Groq Gemma2:9b": "groq/gemma2-9b-it",
     "Groq Llama3.1:8b": "groq/llama-3.1-8b-instant",
     "Groq Qwen-Qwq:32b": "groq/qwen-qwq-32b",
