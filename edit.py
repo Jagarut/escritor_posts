@@ -16,6 +16,16 @@ MODELS = {
     "Mistral Medium": "mistral-medium-latest",
     "Mistral Large": "mistral-large-latest",
     "Mistral Nemo": "open-mistral-nemo",
+    "OpenRouter ArliAI": "or/arliai/qwq-32b-arliai-rpr-v1:free",
+    "OpenRouter DeepHermes 3 Mistral 24B": "or/nousresearch/deephermes-3-mistral-24b-preview:free",
+    "OpenRouter Mistral Nemo": "or/mistralai/mistral-nemo:free",
+    "OpenRouter Dolphin3.0 Mistral": "or/cognitivecomputations/dolphin3.0-mistral-24b:free",
+    "OpenRouter Qwen3:32b": "or/qwen/qwen3-32b:free",
+    "OpenRouter Qwen3:235b": "or/qwen/qwen3-235b-a22b:free",
+    "OpenRouter DeepSeek V3": "or/deepseek/deepseek-chat-v3-0324:free",
+    "OpenRouter DeepSeek V3 Base": "or/deepseek/deepseek-v3-base:free",
+    "OpenRouter Gemma 3 27B": "or/google/gemma-3-27b-it:free",
+    "OpenRouter Nemotron Super": "or/nvidia/llama-3.3-nemotron-super-49b-v1:free",
     "OpenRouter Qwen3:32b": "or/qwen/qwen3-32b:free",
     "Groq Gemma2:9b": "groq/gemma2-9b-it",
     "Groq Llama3.1:8b": "groq/llama-3.1-8b-instant",
@@ -23,6 +33,7 @@ MODELS = {
     "Groq Llama Scout": "groq/meta-llama/llama-4-scout-17b-16e-instruct",
     "Groq Llama Maverick": "groq/meta-llama/llama-4-maverick-17b-128e-instruct",
     "Groq LLama Versatile:70b": "groq/llama-3.3-70b-versatile",
+    "Cerebras qwen3:32b": "cerebras/qwen-3-32b",
     "Cerebras llama3.1-8b": "cerebras/llama3.1-8b",
     "Cerebras llama3.3-70b": "cerebras/llama-3.3-70b",
     "Cerebras llama-4-scout-17b": "cerebras/llama-4-scout-17b-16e-instruct",
@@ -636,7 +647,7 @@ def main():
                         current_text = join_paragraphs(st.session_state.edited_paragraphs)
                         refined = refine_text(
                             current_text,
-                            SYSTEM_PROMPTS["Traductor Sys Prompt"],
+                            USER_PROMPTS["Translate"],
                             model=st.session_state.selected_model,
                             system_prompt=st.session_state.system_prompt
                         )
