@@ -16,6 +16,7 @@ MODELS = {
     "Mistral Medium": "mistral-medium-latest",
     "Mistral Large": "mistral-large-latest",
     "Mistral Nemo": "open-mistral-nemo",
+    "Gemini flash2.0": "G/gemini-2.0-flash",
     "OpenRouter ArliAI": "or/arliai/qwq-32b-arliai-rpr-v1:free",
     "OpenRouter DeepHermes 3 Mistral 24B": "or/nousresearch/deephermes-3-mistral-24b-preview:free",
     "OpenRouter Mistral Nemo": "or/mistralai/mistral-nemo:free",
